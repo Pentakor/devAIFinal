@@ -11,7 +11,7 @@ export const register = async (req, res) => {
     const { username, email, password, registrationCode } = req.body;
 
     // Check if registration code is valid
-    if (registrationCode !== process.env.REGISTRATION_CODE) {
+    if (registrationCode !== process.env.REGISTRATION_SECRET) {
         throw new ValidationError('Invalid registration code');
     }
 
@@ -28,7 +28,7 @@ export const register = async (req, res) => {
     const user = new User({
         username,
         email,
-        password
+        passwordHash: await User.hashPassword(password)
     });
 
     await user.save();

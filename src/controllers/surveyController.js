@@ -71,7 +71,7 @@ export const deleteSurvey = async (req, res) => {
         throw new AuthorizationError('Not authorized to delete this survey');
     }
 
-    await survey.remove();
+    await Survey.deleteOne({ _id: survey._id });
 
     res.json({
         status: 'success',
@@ -241,7 +241,7 @@ export const deleteResponse = async (req, res) => {
         throw new ConflictError('Cannot delete response for a closed or expired survey');
     }
 
-    await response.remove();
+    await Response.deleteOne({ _id: response._id });
 
     res.json({
         status: 'success',
@@ -280,5 +280,73 @@ export const listResponses = async (req, res) => {
                 pages: Math.ceil(total / limit)
             }
         }
+    });
+};
+
+export const closeSurvey = async (req, res) => {
+    const survey = await Survey.findById(req.params.id);
+
+    if (!survey) {
+        throw new NotFoundError('Survey not found');
+    }
+
+    if (survey.creator.toString() !== req.user.id && req.user.role !== 'admin') {
+        throw new AuthorizationError('Not authorized to close this survey');
+    }
+
+    if (survey.isClosed) {
+        throw new ConflictError('Survey is already closed');
+    }
+
+    survey.isClosed = true;
+    await survey.save();
+
+    res.json({
+        status: 'success',
+        data: { survey }
+    });
+};
+
+export const getSurveyExpiry = async (req, res) => {
+    const survey = await Survey.findById(req.params.id);
+
+    if (!survey) {
+        throw new NotFoundError('Survey not found');
+    }
+
+    res.json({
+        status: 'success',
+        data: {
+            expiryDate: survey.expiryDate,
+            isExpired: survey.isExpired()
+        }
+    });
+};
+
+export const updateSurveyExpiry = async (req, res) => {
+    const survey = await Survey.findById(req.params.id);
+
+    if (!survey) {
+        throw new NotFoundError('Survey not found');
+    }
+
+    if (survey.creator.toString() !== req.user.id && req.user.role !== 'admin') {
+        throw new AuthorizationError('Not authorized to update this survey');
+    }
+
+    if (survey.isClosed) {
+        throw new ConflictError('Cannot update a closed survey');
+    }
+
+    if (!req.body.expiryDate) {
+        throw new ValidationError('Expiry date is required');
+    }
+
+    survey.expiryDate = new Date(req.body.expiryDate);
+    await survey.save();
+
+    res.json({
+        status: 'success',
+        data: { survey }
     });
 }; 

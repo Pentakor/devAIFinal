@@ -111,18 +111,37 @@ export const search = async (req, res) => {
 export const updateExpiry = async (req, res) => {
     try {
         const survey = await updateSurveyExpiry(req.params.id, req.body.expiryDate, req.user._id);
-        res.json(survey);
+        res.json({
+            status: 'success',
+            data: { survey }
+        });
     } catch (error) {
         if (error.message === 'Survey not found') {
-            return res.status(404).json({ message: error.message });
+            return res.status(404).json({
+                status: 'error',
+                errorCode: 'NOT_FOUND',
+                message: error.message
+            });
         }
         if (error.message === 'Not authorized to update this survey') {
-            return res.status(403).json({ message: error.message });
+            return res.status(403).json({
+                status: 'error',
+                errorCode: 'UNAUTHORIZED',
+                message: error.message
+            });
         }
         if (error.message === 'Invalid expiry date') {
-            return res.status(400).json({ message: error.message });
+            return res.status(400).json({
+                status: 'error',
+                errorCode: 'INVALID_DATE',
+                message: error.message
+            });
         }
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({
+            status: 'error',
+            errorCode: 'SERVER_ERROR',
+            message: 'Server error'
+        });
     }
 };
 

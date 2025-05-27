@@ -102,7 +102,10 @@ export const validateQuery = (schema) => {
             throw new ValidationError('Invalid query parameters', errors);
         }
 
-        req.query = value;
+        // Update query parameters individually
+        Object.keys(value).forEach(key => {
+            req.query[key] = value[key];
+        });
         next();
     };
 }; 

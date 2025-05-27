@@ -44,27 +44,9 @@ const userSchema = new mongoose.Schema({
             message: 'Invalid password hash'
         }
     },
-    role: {
-        type: String,
-        enum: {
-            values: ['user', 'admin'],
-            message: '{VALUE} is not a valid role'
-        },
-        default: 'user'
-    },
     isActive: {
         type: Boolean,
-        default: true,
-        validate: {
-            validator: function(v) {
-                // If user is deactivated, ensure they're not an admin
-                if (!v && this.role === 'admin') {
-                    return false;
-                }
-                return true;
-            },
-            message: 'Admin accounts cannot be deactivated'
-        }
+        default: true
     },
     lastLogin: {
         type: Date,
@@ -88,7 +70,6 @@ const userSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient querying
-userSchema.index({ role: 1 });
 userSchema.index({ isActive: 1 });
 
 // Method to compare password
@@ -107,9 +88,6 @@ userSchema.methods.updateLastLogin = async function() {
 
 // Method to deactivate account
 userSchema.methods.deactivate = async function() {
-    if (this.role === 'admin') {
-        throw new Error('Admin accounts cannot be deactivated');
-    }
     this.isActive = false;
     return this.save();
 };

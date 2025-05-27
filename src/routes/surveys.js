@@ -7,7 +7,10 @@ import {
     listSurveys,
     searchSurveys,
     submitResponse,
-    listResponses
+    listResponses,
+    closeSurvey,
+    getSurveyExpiry,
+    updateSurveyExpiry
 } from '../controllers/surveyController.js';
 import { validateRequest, validateParams, validateQuery } from '../middleware/validateRequest.js';
 import { 
@@ -16,10 +19,11 @@ import {
     searchSchema,
     idParamSchema,
     responseIdParamSchema,
-    paginationSchema
+    paginationSchema,
+    updateExpirySchema
 } from '../validation/schemas.js';
 import { asyncHandler } from '../utils/errors.js';
-import { authenticate, authorize } from '../middleware/auth.js';
+import { authenticate, authorizeCreator } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -28,9 +32,14 @@ router.use(authenticate);
 
 // Survey CRUD operations
 router.post('/',
-    authorize(['admin', 'creator']),
     validateRequest(surveySchema),
     asyncHandler(createSurvey)
+);
+
+router.post('/:id/close',
+    validateParams(idParamSchema),
+    authorizeCreator,
+    asyncHandler(closeSurvey)
 );
 
 router.get('/',
@@ -49,16 +58,28 @@ router.get('/:id',
 );
 
 router.put('/:id',
-    authorize(['admin', 'creator']),
     validateParams(idParamSchema),
     validateRequest(surveySchema),
+    authorizeCreator,
     asyncHandler(updateSurvey)
 );
 
 router.delete('/:id',
-    authorize(['admin', 'creator']),
     validateParams(idParamSchema),
+    authorizeCreator,
     asyncHandler(deleteSurvey)
+);
+
+router.get('/:id/expiry',
+    validateParams(idParamSchema),
+    asyncHandler(getSurveyExpiry)
+);
+
+router.put('/:id/expiry',
+    validateParams(idParamSchema),
+    validateRequest(updateExpirySchema),
+    authorizeCreator,
+    asyncHandler(updateSurveyExpiry)
 );
 
 // Response operations
@@ -69,9 +90,9 @@ router.post('/:id/responses',
 );
 
 router.get('/:id/responses',
-    authorize(['admin', 'creator']),
     validateParams(idParamSchema),
     validateQuery(paginationSchema),
+    authorizeCreator,
     asyncHandler(listResponses)
 );
 

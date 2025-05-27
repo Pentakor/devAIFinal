@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-import { AuthenticationError, AuthorizationError } from '../utils/errors.js';
+import { AuthenticationError } from '../utils/errors.js';
 import Survey from '../models/Survey.js';
 
 export const authenticate = async (req, res, next) => {
@@ -40,18 +40,9 @@ export const authenticate = async (req, res, next) => {
     }
 };
 
-export const authorize = (...roles) => {
-    return (req, res, next) => {
-        if (!roles.includes(req.user.role)) {
-            throw new AuthorizationError('Not authorized to access this resource');
-        }
-        next();
-    };
-};
-
 export const authorizeCreator = async (req, res, next) => {
     try {
-        const survey = await Survey.findById(req.params.surveyId);
+        const survey = await Survey.findById(req.params.id);
         if (!survey) {
             return res.status(404).json({ message: 'Survey not found' });
         }

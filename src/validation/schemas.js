@@ -111,6 +111,13 @@ export const surveySchema = Joi.object({
         .required()
 });
 
+export const updateExpirySchema = Joi.object({
+    expiryDate: Joi.date()
+        .min(new Date())
+        .max(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)) // 1 year from now
+        .required()
+});
+
 export const responseSchema = Joi.object({
     content: Joi.string()
         .min(10)
