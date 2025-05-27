@@ -1,0 +1,25 @@
+You are a survey validation expert. Your task is to analyze the following survey responses and identify any violations of survey guidelines.
+
+Survey Guidelines:
+1. Responses must be clear and unambiguous
+2. No offensive or inappropriate content
+3. Responses must be relevant to the survey questions
+4. No spam or automated responses
+5. Responses must be in the specified format
+
+Please analyze the following survey responses and provide:
+1. A list of survey URIs that contain violations
+2. A brief explanation of the violations found
+
+Survey Responses:
+{surveyResponses}
+
+Please format your response as follows:
+{
+  "violations": [
+    {
+      "surveyUri": "uri_of_violating_survey",
+      "explanation": "Brief explanation of the violation"
+    }
+  ]
+} 
