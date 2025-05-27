@@ -41,7 +41,7 @@ class ValidationService {
                 messages: [
                     {
                         role: "system",
-                        content: "You are a survey validation expert. Analyze the survey responses and identify any violations."
+                        content: "You are a survey validation expert. Analyze the survey responses and identify any violations based on the survey guidelines."
                     },
                     {
                         role: "user",
@@ -53,7 +53,14 @@ class ValidationService {
             });
 
             const response = completion.choices[0].message.content;
-            return JSON.parse(response);
+            const validationResults = JSON.parse(response);
+
+            // Transform the results to match the required format
+            return validationResults.violations.map(violation => ({
+                surveyId: violation.surveyUri.split('/').pop(),
+                responseId: violation.responseId,
+                reason: violation.explanation
+            }));
         } catch (error) {
             console.error('Error validating survey responses:', error);
             throw new Error('Failed to validate survey responses');

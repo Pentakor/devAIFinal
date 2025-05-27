@@ -30,7 +30,7 @@ router.put('/:id', authenticate, authorizeCreator, checkSurveyExpiry, update);
 router.post('/:id/close', authenticate, authorizeCreator, close);
 router.post('/:id/responses', authenticate, checkSurveyExpiry, validate(responseSchema), addSurveyResponse);
 router.put('/:id/responses/:responseId', authenticate, checkSurveyExpiry, validate(responseSchema), updateResponse);
-router.delete('/:id/responses/:responseId', authenticate, checkSurveyExpiry, deleteSurveyResponse);
+router.delete('/:id/responses/:responseId', authenticate, authorizeCreator, deleteSurveyResponse);
 router.put('/:id/expiry', authenticate, authorizeCreator, updateExpiry);
 router.get('/:id/validate-responses', authenticate, authorizeCreator, validateResponses);
 router.post('/:id/summary', authenticate, authorizeCreator, generateSummary);

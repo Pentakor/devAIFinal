@@ -8,8 +8,8 @@ Survey Guidelines:
 5. Responses must be in the specified format
 
 Please analyze the following survey responses and provide:
-1. A list of survey URIs that contain violations
-2. A brief explanation of the violations found
+1. A list of violations found
+2. A brief explanation for each violation
 
 Survey Responses:
 {surveyResponses}
@@ -19,7 +19,15 @@ Please format your response as follows:
   "violations": [
     {
       "surveyUri": "uri_of_violating_survey",
+      "responseId": "id_of_violating_response",
       "explanation": "Brief explanation of the violation"
     }
   ]
-} 
+}
+
+Guidelines for validation:
+1. Be specific about why a response violates the guidelines
+2. Consider both content and format violations
+3. Check for relevance to the survey topic
+4. Look for patterns of spam or automated responses
+5. Ensure explanations are clear and actionable 
