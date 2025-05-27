@@ -1,96 +1,58 @@
-import * as storage from '../Storage/user.js';
-import * as pollStorage from '../Storage/poll.js';
-import { getPoll, savePoll } from '../Storage/poll.js';
+import jwt from 'jsonwebtoken';
+import User from '../storage/models/User.js';
+import { registerSchema, loginSchema } from '../validation/schemas.js';
 
-/**
- * Retrieves a user by username.
- * 
- * @param {string} username - The username to look up
- * @returns {Promise<string | undefined>} The user if found, otherwise undefined
- */
-export const getUser = async (username) => {
-  return storage.getUser(username);
+export const registerUser = async (userData) => {
+    const { error } = registerSchema.validate(userData);
+    if (error) {
+        throw new Error(error.details[0].message);
+    }
+
+    const { username, email, password, registrationCode } = userData;
+
+    if (registrationCode !== process.env.REGISTRATION_SECRET) {
+        throw new Error('Invalid registration code');
+    }
+
+    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+    if (existingUser) {
+        throw new Error('User already exists');
+    }
+
+    const passwordHash = await User.hashPassword(password);
+    const user = new User({
+        username,
+        email,
+        passwordHash
+    });
+
+    await user.save();
+    return { message: 'Registration successful' };
 };
 
-/**
- * Creates a new user.
- * 
- * @param {string} username - The username for the new user
- * @returns {Promise<{ username: string }>} The created user object
- * @throws {Error} If the user already exists
- */
-export const createUser = async (username) => {
-  const existingUser = await storage.getUser(username);
-  if (existingUser) {
-    throw new Error("User already exists");
-  }
+export const loginUser = async (credentials) => {
+    const { error } = loginSchema.validate(credentials);
+    if (error) {
+        throw new Error(error.details[0].message);
+    }
 
-  return storage.createUser(username);
-};
+    const { email, password } = credentials;
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+        throw new Error('Invalid credentials');
+    }
 
-/**
- * 
- * @param {string} id - pool ID
- * @param {string} username - The voting user's username
- * @param {number} optionIndex - The index of the option the user is voting for
- * @return {Promise<Object>} The updated poll object
- * @throws {Error} If the poll ID is invalid, the user does not exist, the option index is invalid, or the user has already voted
- */
-export const voteOnPoll = async (id, username, optionIndex) => {
-  if (!id || typeof id !== 'string') {
-    throw new Error("Poll ID is required and must be a string");
-  }
+    const isValidPassword = await user.comparePassword(password);
+    if (!isValidPassword) {
+        throw new Error('Invalid credentials');
+    }
 
-  if (!username || typeof username !== 'string') {
-    throw new Error("Username is required and must be a string");
-  }
+    const token = jwt.sign(
+        { userId: user._id, username: user.username },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN }
+    );
 
-  if (typeof optionIndex !== 'number' || optionIndex < 0) {
-    throw new Error("Option index is required and must be a non-negative number");
-  }
-
-  const user = await storage.getUser(username);
-  if (!user) {
-    throw new Error("User does not exist");
-  }
-
-  const poll = await getPoll(id);
-
-  if (!poll) {
-    throw new Error("Poll not found");
-  }
-
-  if (optionIndex >= poll.options.length) {
-    throw new Error("Invalid option index");
-  }
-
-  if (poll.votes[username] !== undefined) {
-    throw new Error("User has already voted");
-  }
-
-  // Update the votes
-  poll.votes[username] = optionIndex;
-
-  // Save the updated poll
-  await savePoll(poll);
-  return poll;
-};
-
-/**
- * Gets all polls that the given user has voted on.
- * 
- * @param {string} username - Username to query
- * @returns {Promise<Object[]>} An array of polls the user has voted in
- * @throws {Error} If username is invalid
- */
-export const getVotedPollsByUser = async (username) => {
-  // Validate input
-  if (!username || typeof username !== 'string') {
-    throw new Error("Username is required and must be a string");
-  }
-
-  const allPolls = await pollStorage.getAllPolls();
-
-  // Filter polls where the user has voted
-  return allPolls.filter(poll => poll.votes[username] !== undefined);
-};
+    return { token };
+}; 
