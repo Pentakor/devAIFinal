@@ -1,0 +1,16 @@
+{
+    "tags": {
+      "allowUnknownTags": true
+    },
+    "source": {
+      "include": ["./src"],
+      "exclude": ["node_modules", "tests", "docs"],
+      "includePattern": ".js$",
+      "excludePattern": "(node_modules|tests|docs)"
+    },
+    "opts": {
+      "destination": "./docs",
+      "recurse": true
+    }
+  }
+  

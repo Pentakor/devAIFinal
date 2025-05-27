@@ -1,0 +1,25 @@
+{
+  "type": "module",
+  "name": "firstai",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "start": "node server.js",
+    "docs": "jsdoc -c jsdoc.json"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jsdoc": "^4.0.4"
+  },
+  "dependencies": {
+    "axios": "^1.8.4",
+    "express": "^5.1.0",
+    "uuid": "^11.1.0",
+    "zod": "^3.24.3"
+  }
+}
