@@ -1,4 +1,4 @@
-import Survey from '../storage/models/Survey.js';
+import Survey from '../models/Survey.js';
 import { surveySchema, responseSchema } from '../validation/schemas.js';
 import { getPrompt } from '../utils/promptLoader.js';
 

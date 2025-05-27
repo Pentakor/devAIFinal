@@ -5,7 +5,7 @@ import User from '../storage/models/User.js';
 export const register = async (req, res) => {
     try {
         const { username, email, password, registrationCode } = req.body;
-
+        console.log(process.env.REGISTRATION_SECRET);
         // Check registration code
         if (registrationCode !== process.env.REGISTRATION_SECRET) {
             return res.status(403).json({ message: 'Invalid registration code' });

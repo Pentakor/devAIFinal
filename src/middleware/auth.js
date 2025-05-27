@@ -1,27 +1,52 @@
 import jwt from 'jsonwebtoken';
-import User from '../storage/models/User.js';
-import Survey from '../storage/models/Survey.js';
+import User from '../models/User.js';
+import { AuthenticationError, AuthorizationError } from '../utils/errors.js';
+import Survey from '../models/Survey.js';
 
 export const authenticate = async (req, res, next) => {
     try {
+        // Get token from header
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({ message: 'Authentication required' });
+            throw new AuthenticationError('No token provided');
         }
 
         const token = authHeader.split(' ')[1];
+
+        // Verify token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        
-        const user = await User.findById(decoded.userId);
+
+        // Get user from token
+        const user = await User.findById(decoded.id);
         if (!user) {
-            return res.status(401).json({ message: 'User not found' });
+            throw new AuthenticationError('User not found');
         }
 
+        if (!user.isActive) {
+            throw new AuthenticationError('Account is deactivated');
+        }
+
+        // Add user to request
         req.user = user;
         next();
     } catch (error) {
-        return res.status(401).json({ message: 'Invalid token' });
+        if (error.name === 'JsonWebTokenError') {
+            next(new AuthenticationError('Invalid token'));
+        } else if (error.name === 'TokenExpiredError') {
+            next(new AuthenticationError('Token expired'));
+        } else {
+            next(error);
+        }
     }
+};
+
+export const authorize = (...roles) => {
+    return (req, res, next) => {
+        if (!roles.includes(req.user.role)) {
+            throw new AuthorizationError('Not authorized to access this resource');
+        }
+        next();
+    };
 };
 
 export const authorizeCreator = async (req, res, next) => {
