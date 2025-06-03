@@ -1,6 +1,7 @@
 import Survey from '../models/Survey.js';
 import { surveySchema, responseSchema } from '../validation/schemas.js';
 import { getPrompt } from '../utils/promptLoader.js';
+import validationService from './validationService.js';
 
 export const createSurvey = async (surveyData, userId) => {
     const { error } = surveySchema.validate(surveyData);
@@ -210,59 +211,15 @@ export const removeResponse = async (surveyId, responseId, userId) => {
     return survey;
 };
 
-export const validateSurveyResponses = async (surveyId, userId) => {
-    const survey = await Survey.findById(surveyId)
-        .populate('creator', 'username')
-        .populate('responses.user', 'username');
-    
-    if (!survey) {
-        throw new Error('Survey not found');
+export const validateSurveyResponses = async (survey) => {
+    try {
+        const validationPrompt = getPrompt('validatePrompt');
+        const validationResult = await validationService.validateSurveyResponses(survey.responses);
+        return validationResult;
+    } catch (error) {
+        console.error('Error validating survey responses:', error);
+        throw new Error('Failed to validate survey responses');
     }
-
-    if (survey.creator.toString() !== userId.toString()) {
-        throw new Error('Not authorized to validate responses for this survey');
-    }
-
-    const violations = [];
-    
-    // Check each response against guidelines
-    survey.responses.forEach(response => {
-        const content = response.content.toLowerCase();
-        
-        // Check for offensive content
-        const offensiveWords = ['offensive', 'inappropriate', 'spam']; // Add more as needed
-        if (offensiveWords.some(word => content.includes(word))) {
-            violations.push({
-                responseId: response._id,
-                userId: response.user._id,
-                reason: 'Contains offensive or inappropriate content'
-            });
-        }
-
-        // Check for relevance
-        if (!content.includes(survey.area.toLowerCase())) {
-            violations.push({
-                responseId: response._id,
-                userId: response.user._id,
-                reason: 'Response not relevant to survey area'
-            });
-        }
-
-        // Check for spam patterns
-        if (content.length < 10 || content.length > 1000) {
-            violations.push({
-                responseId: response._id,
-                userId: response.user._id,
-                reason: 'Response length suggests spam'
-            });
-        }
-    });
-
-    return {
-        surveyId,
-        totalResponses: survey.responses.length,
-        violations
-    };
 };
 
 export const generateSurveySummary = async (surveyId, userId, prompts) => {
@@ -342,49 +299,56 @@ export const toggleSummaryVisibility = async (surveyId, userId) => {
 };
 
 export const searchSurveysByQuery = async (query, prompts) => {
-    if (!query) {
-        throw new Error('Search query is required');
+    try {
+        const searchPrompt = getPrompt('searchPrompt');
+        const searchResults = await validationService.validateSurveyResponses(query);
+        return searchResults;
+    } catch (error) {
+        console.error('Error searching surveys:', error);
+        throw new Error('Failed to search surveys');
+    }
+};
+
+export const searchByQuery = async (query) => {
+    if (!query || typeof query !== 'string') {
+        throw new Error('Valid search query is required');
     }
 
-    // Get all surveys
-    const surveys = await Survey.find()
-        .populate('creator', 'username')
-        .sort('-createdAt');
+    // First get all surveys for context
+    const allSurveys = await Survey.find({})
+        .select('_id area question guidelines')
+        .lean();
 
-    // Prepare survey data for the prompt
-    const surveyData = surveys.map(survey => ({
-        uri: `/api/surveys/${survey._id}`,
-        area: survey.area,
-        question: survey.question,
-        guidelines: survey.guidelines,
-        createdAt: survey.createdAt,
-        creator: survey.creator.username
-    }));
-
-    // Get the search prompt template
-    const searchPrompt = getPrompt(prompts, 'searchPrompt');
-    
-    // Replace placeholders in the prompt
-    const filledPrompt = searchPrompt
-        .replace('{query}', query)
-        .replace('{surveyData}', JSON.stringify(surveyData));
-
-    // TODO: Call AI service to process the prompt and get matches
-    // For now, return a mock response
-    const matches = surveyData
-        .filter(survey => 
-            survey.area.toLowerCase().includes(query.toLowerCase()) ||
-            survey.question.toLowerCase().includes(query.toLowerCase())
-        )
-        .map(survey => ({
-            surveyUri: survey.uri,
-            relevanceScore: 0.8,
-            matchReason: `Matches query in ${survey.area} area`
-        }));
-
-    return {
+    // Use LLM to analyze the query and find relevant surveys
+    const searchPrompt = {
         query,
-        totalMatches: matches.length,
-        matches
+        surveys: allSurveys.map(survey => ({
+            id: survey._id,
+            area: survey.area,
+            question: survey.question,
+            domains: survey.guidelines.permittedDomains
+        }))
     };
+
+    try {
+        const searchResults = await aiService.searchSurveys(searchPrompt);
+        
+        // Get full survey details for matching surveys
+        const matchingSurveys = await Survey.find({
+            _id: { $in: searchResults.map(result => result.surveyId) }
+        }).populate('creator', 'username');
+
+        // Combine LLM results with survey details
+        return matchingSurveys.map(survey => {
+            const result = searchResults.find(r => r.surveyId.toString() === survey._id.toString());
+            return {
+                survey,
+                relevance: result.relevance,
+                explanation: result.explanation
+            };
+        });
+    } catch (error) {
+        console.error('Error in semantic search:', error);
+        throw new Error('Failed to perform semantic search');
+    }
 }; 

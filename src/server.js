@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { loadPrompts } from './utils/promptLoader.js';
-import surveyRoutes from './routes/survey.js';
+import surveyRoutes from './routes/surveys.js';
 import authRoutes from './routes/auth.js';
 import mongoose from 'mongoose';
 import path from 'path';

@@ -193,4 +193,53 @@ export const databaseQuerySchema = Joi.object({
         .integer()
         .min(0)
         .default(0)
+});
+
+// Survey response validation schema
+export const surveyResponsesSchema = Joi.object({
+    surveyResponses: Joi.array()
+        .items(
+            Joi.object({
+                surveyId: Joi.string()
+                    .required()
+                    .pattern(/^[0-9a-fA-F]{24}$/)
+                    .messages({
+                        'string.pattern.base': 'Invalid survey ID format'
+                    }),
+                responseId: Joi.string()
+                    .required()
+                    .pattern(/^[0-9a-fA-F]{24}$/)
+                    .messages({
+                        'string.pattern.base': 'Invalid response ID format'
+                    }),
+                content: Joi.string()
+                    .required()
+                    .min(10)
+                    .max(2000)
+                    .trim()
+            })
+        )
+        .min(1)
+        .required()
+        .messages({
+            'array.min': 'At least one survey response is required'
+        })
+});
+
+// Natural language search schema
+export const naturalSearchSchema = Joi.object({
+    query: Joi.string()
+        .min(2)
+        .max(200)  // Longer max length for natural language queries
+        .required()
+        .trim()
+        .custom((value, helpers) => {
+            // Ensure the query is not just a single word
+            if (value.split(/\s+/).length < 2) {
+                return helpers.error('string.custom', { 
+                    message: 'Natural language search requires at least two words' 
+                });
+            }
+            return value;
+        })
 }); 

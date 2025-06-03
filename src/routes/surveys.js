@@ -10,7 +10,13 @@ import {
     listResponses,
     closeSurvey,
     getSurveyExpiry,
-    updateSurveyExpiry
+    updateSurveyExpiry,
+    updateResponse,
+    deleteSurveyResponse,
+    validateResponses,
+    generateSummary,
+    toggleSummary,
+    searchByQuery
 } from '../controllers/surveyController.js';
 import { validateRequest, validateParams, validateQuery } from '../middleware/validateRequest.js';
 import { 
@@ -20,10 +26,11 @@ import {
     idParamSchema,
     responseIdParamSchema,
     paginationSchema,
-    updateExpirySchema
+    updateExpirySchema,
+    naturalSearchSchema
 } from '../validation/schemas.js';
 import { asyncHandler } from '../utils/errors.js';
-import { authenticate, authorizeCreator } from '../middleware/auth.js';
+import { authenticate, authorizeCreator, checkSurveyExpiry } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -36,12 +43,6 @@ router.post('/',
     asyncHandler(createSurvey)
 );
 
-router.post('/:id/close',
-    validateParams(idParamSchema),
-    authorizeCreator,
-    asyncHandler(closeSurvey)
-);
-
 router.get('/',
     validateQuery(paginationSchema),
     asyncHandler(listSurveys)
@@ -50,6 +51,11 @@ router.get('/',
 router.get('/search',
     validateQuery(searchSchema),
     asyncHandler(searchSurveys)
+);
+
+router.get('/search/natural',
+    validateQuery(naturalSearchSchema),
+    asyncHandler(searchByQuery)
 );
 
 router.get('/:id',
@@ -61,6 +67,7 @@ router.put('/:id',
     validateParams(idParamSchema),
     validateRequest(surveySchema),
     authorizeCreator,
+    checkSurveyExpiry,
     asyncHandler(updateSurvey)
 );
 
@@ -68,6 +75,13 @@ router.delete('/:id',
     validateParams(idParamSchema),
     authorizeCreator,
     asyncHandler(deleteSurvey)
+);
+
+// Survey management operations
+router.post('/:id/close',
+    validateParams(idParamSchema),
+    authorizeCreator,
+    asyncHandler(closeSurvey)
 );
 
 router.get('/:id/expiry',
@@ -82,11 +96,43 @@ router.put('/:id/expiry',
     asyncHandler(updateSurveyExpiry)
 );
 
+router.get('/:id/validate-responses',
+    validateParams(idParamSchema),
+    authorizeCreator,
+    asyncHandler(validateResponses)
+);
+
+router.post('/:id/summary',
+    validateParams(idParamSchema),
+    authorizeCreator,
+    asyncHandler(generateSummary)
+);
+
+router.put('/:id/summary/visibility',
+    validateParams(idParamSchema),
+    authorizeCreator,
+    asyncHandler(toggleSummary)
+);
+
 // Response operations
 router.post('/:id/responses',
     validateParams(idParamSchema),
     validateRequest(responseSchema),
+    checkSurveyExpiry,
     asyncHandler(submitResponse)
+);
+
+router.put('/:id/responses/:responseId',
+    validateParams(responseIdParamSchema),
+    validateRequest(responseSchema),
+    checkSurveyExpiry,
+    asyncHandler(updateResponse)
+);
+
+router.delete('/:id/responses/:responseId',
+    validateParams(responseIdParamSchema),
+    authorizeCreator,
+    asyncHandler(deleteSurveyResponse)
 );
 
 router.get('/:id/responses',

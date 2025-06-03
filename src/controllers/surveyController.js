@@ -4,349 +4,242 @@ import {
     ValidationError, 
     NotFoundError, 
     AuthorizationError,
-    ConflictError
+    ConflictError,
+    AuthenticationError
 } from '../utils/errors.js';
+import * as surveyService from '../service/surveyService.js';
+import { asyncHandler } from '../utils/errors.js';
 
 // Survey controllers
-export const createSurvey = async (req, res) => {
-    const survey = new Survey({
-        ...req.body,
-        creator: req.user.id
-    });
-
-    await survey.save();
-
+export const createSurvey = asyncHandler(async (req, res) => {
+    const survey = await surveyService.createSurvey(req.body, req.user._id);
     res.status(201).json({
         status: 'success',
-        data: { survey }
+        data: survey
     });
-};
+});
 
-export const getSurvey = async (req, res) => {
-    const survey = await Survey.findById(req.params.id)
-        .populate('creator', 'username email');
-
+export const getSurvey = asyncHandler(async (req, res) => {
+    const survey = await surveyService.getSurveyById(req.params.id);
     if (!survey) {
         throw new NotFoundError('Survey not found');
     }
-
-    res.json({
+    res.status(200).json({
         status: 'success',
-        data: { survey }
+        data: survey
     });
-};
+});
 
-export const updateSurvey = async (req, res) => {
-    const survey = await Survey.findById(req.params.id);
-
+export const updateSurvey = asyncHandler(async (req, res) => {
+    const survey = await surveyService.updateSurvey(req.params.id, req.body, req.user._id);
     if (!survey) {
         throw new NotFoundError('Survey not found');
     }
-
-    if (survey.creator.toString() !== req.user.id && req.user.role !== 'admin') {
-        throw new AuthorizationError('Not authorized to update this survey');
-    }
-
-    if (survey.isClosed) {
-        throw new ConflictError('Cannot update a closed survey');
-    }
-
-    Object.assign(survey, req.body);
-    await survey.save();
-
-    res.json({
+    res.status(200).json({
         status: 'success',
-        data: { survey }
+        data: survey
     });
-};
+});
 
-export const deleteSurvey = async (req, res) => {
-    const survey = await Survey.findById(req.params.id);
-
+export const deleteSurvey = asyncHandler(async (req, res) => {
+    const survey = await surveyService.deleteSurvey(req.params.id, req.user._id);
     if (!survey) {
         throw new NotFoundError('Survey not found');
     }
+    res.status(204).send();
+});
 
-    if (survey.creator.toString() !== req.user.id && req.user.role !== 'admin') {
-        throw new AuthorizationError('Not authorized to delete this survey');
+export const listSurveys = asyncHandler(async (req, res) => {
+    const surveys = await surveyService.getAllSurveys();
+    res.status(200).json({
+        status: 'success',
+        data: surveys
+    });
+});
+
+export const searchSurveys = asyncHandler(async (req, res) => {
+    if (!req.query.query) {
+        throw new ValidationError('Search query is required');
+    }
+    const surveys = await surveyService.searchSurveys(req.query.query);
+    res.status(200).json({
+        status: 'success',
+        data: surveys
+    });
+});
+
+export const searchByQuery = asyncHandler(async (req, res) => {
+    const { query } = req.query;
+    
+    if (!query) {
+        throw new ValidationError('Search query is required');
     }
 
-    await Survey.deleteOne({ _id: survey._id });
-
-    res.json({
-        status: 'success',
-        data: null
-    });
-};
-
-export const listSurveys = async (req, res) => {
-    const { page = 1, limit = 10, sort = 'createdAt', order = 'desc' } = req.query;
-
-    const surveys = await Survey.find()
-        .sort({ [sort]: order === 'desc' ? -1 : 1 })
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit))
-        .populate('creator', 'username email');
-
-    const total = await Survey.countDocuments();
-
-    res.json({
+    const results = await surveyService.searchByQuery(query);
+    
+    res.status(200).json({
         status: 'success',
         data: {
-            surveys,
-            pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total,
-                pages: Math.ceil(total / limit)
-            }
+            results: results.map(result => ({
+                survey: result.survey,
+                relevance: result.relevance,
+                explanation: result.explanation
+            }))
         }
     });
-};
+});
 
-export const searchSurveys = async (req, res) => {
-    const { query, type = 'fuzzy' } = req.query;
-
-    let searchQuery;
-    switch (type) {
-        case 'exact':
-            searchQuery = {
-                $or: [
-                    { question: query },
-                    { area: query }
-                ]
-            };
-            break;
-        case 'semantic':
-            // Implement semantic search if needed
-            searchQuery = {
-                $text: { $search: query }
-            };
-            break;
-        default: // fuzzy
-            searchQuery = {
-                $or: [
-                    { question: { $regex: query, $options: 'i' } },
-                    { area: { $regex: query, $options: 'i' } }
-                ]
-            };
-    }
-
-    const surveys = await Survey.find(searchQuery)
-        .populate('creator', 'username email');
-
-    res.json({
-        status: 'success',
-        data: { surveys }
-    });
-};
-
-// Response controllers
-export const submitResponse = async (req, res) => {
-    const survey = await Survey.findById(req.params.id);
-
+// Survey management operations
+export const closeSurvey = asyncHandler(async (req, res) => {
+    const survey = await surveyService.closeSurvey(req.params.id, req.user._id);
     if (!survey) {
         throw new NotFoundError('Survey not found');
     }
-
-    if (survey.isClosed || survey.isExpired()) {
-        throw new ConflictError('Survey is closed or expired');
-    }
-
-    const existingResponse = await Response.findOne({
-        survey: survey._id,
-        user: req.user.id
-    });
-
-    if (existingResponse) {
-        throw new ConflictError('You have already submitted a response to this survey');
-    }
-
-    const response = new Response({
-        survey: survey._id,
-        user: req.user.id,
-        content: req.body.content,
-        metadata: {
-            ipAddress: req.ip,
-            userAgent: req.headers['user-agent'],
-            submissionTime: new Date()
-        }
-    });
-
-    await response.save();
-
-    res.status(201).json({
+    res.status(200).json({
         status: 'success',
-        data: { response }
+        data: survey
     });
-};
+});
 
-export const getResponse = async (req, res) => {
-    const response = await Response.findById(req.params.responseId)
-        .populate('user', 'username email')
-        .populate('survey');
-
-    if (!response) {
-        throw new NotFoundError('Response not found');
-    }
-
-    if (response.user._id.toString() !== req.user.id && req.user.role !== 'admin') {
-        throw new AuthorizationError('Not authorized to view this response');
-    }
-
-    res.json({
-        status: 'success',
-        data: { response }
-    });
-};
-
-export const updateResponse = async (req, res) => {
-    const response = await Response.findById(req.params.responseId);
-
-    if (!response) {
-        throw new NotFoundError('Response not found');
-    }
-
-    if (response.user.toString() !== req.user.id && req.user.role !== 'admin') {
-        throw new AuthorizationError('Not authorized to update this response');
-    }
-
-    const survey = await Survey.findById(response.survey);
-    if (survey.isClosed || survey.isExpired()) {
-        throw new ConflictError('Cannot update response for a closed or expired survey');
-    }
-
-    Object.assign(response, req.body);
-    await response.save();
-
-    res.json({
-        status: 'success',
-        data: { response }
-    });
-};
-
-export const deleteResponse = async (req, res) => {
-    const response = await Response.findById(req.params.responseId);
-
-    if (!response) {
-        throw new NotFoundError('Response not found');
-    }
-
-    if (response.user.toString() !== req.user.id && req.user.role !== 'admin') {
-        throw new AuthorizationError('Not authorized to delete this response');
-    }
-
-    const survey = await Survey.findById(response.survey);
-    if (survey.isClosed || survey.isExpired()) {
-        throw new ConflictError('Cannot delete response for a closed or expired survey');
-    }
-
-    await Response.deleteOne({ _id: response._id });
-
-    res.json({
-        status: 'success',
-        data: null
-    });
-};
-
-export const listResponses = async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-
-    const survey = await Survey.findById(req.params.id);
+export const getSurveyExpiry = asyncHandler(async (req, res) => {
+    const survey = await surveyService.getSurveyById(req.params.id);
     if (!survey) {
         throw new NotFoundError('Survey not found');
     }
-
-    if (survey.creator.toString() !== req.user.id && req.user.role !== 'admin') {
-        throw new AuthorizationError('Not authorized to view responses for this survey');
-    }
-
-    const responses = await Response.find({ survey: survey._id })
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit))
-        .populate('user', 'username email');
-
-    const total = await Response.countDocuments({ survey: survey._id });
-
-    res.json({
-        status: 'success',
-        data: {
-            responses,
-            pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total,
-                pages: Math.ceil(total / limit)
-            }
-        }
-    });
-};
-
-export const closeSurvey = async (req, res) => {
-    const survey = await Survey.findById(req.params.id);
-
-    if (!survey) {
-        throw new NotFoundError('Survey not found');
-    }
-
-    if (survey.creator.toString() !== req.user.id && req.user.role !== 'admin') {
-        throw new AuthorizationError('Not authorized to close this survey');
-    }
-
-    if (survey.isClosed) {
-        throw new ConflictError('Survey is already closed');
-    }
-
-    survey.isClosed = true;
-    await survey.save();
-
-    res.json({
-        status: 'success',
-        data: { survey }
-    });
-};
-
-export const getSurveyExpiry = async (req, res) => {
-    const survey = await Survey.findById(req.params.id);
-
-    if (!survey) {
-        throw new NotFoundError('Survey not found');
-    }
-
-    res.json({
+    res.status(200).json({
         status: 'success',
         data: {
             expiryDate: survey.expiryDate,
             isExpired: survey.isExpired()
         }
     });
-};
+});
 
-export const updateSurveyExpiry = async (req, res) => {
-    const survey = await Survey.findById(req.params.id);
+export const updateSurveyExpiry = asyncHandler(async (req, res) => {
+    const survey = await surveyService.updateSurveyExpiry(req.params.id, req.body.expiryDate, req.user._id);
+    if (!survey) {
+        throw new NotFoundError('Survey not found');
+    }
+    res.status(200).json({
+        status: 'success',
+        data: survey
+    });
+});
 
+export const validateResponses = asyncHandler(async (req, res) => {
+    const survey = await surveyService.getSurveyById(req.params.id);
     if (!survey) {
         throw new NotFoundError('Survey not found');
     }
 
-    if (survey.creator.toString() !== req.user.id && req.user.role !== 'admin') {
-        throw new AuthorizationError('Not authorized to update this survey');
+    if (survey.creator.toString() !== req.user._id.toString()) {
+        throw new AuthenticationError('Only survey creator can validate responses');
     }
 
-    if (survey.isClosed) {
-        throw new ConflictError('Cannot update a closed survey');
-    }
-
-    if (!req.body.expiryDate) {
-        throw new ValidationError('Expiry date is required');
-    }
-
-    survey.expiryDate = new Date(req.body.expiryDate);
-    await survey.save();
-
-    res.json({
+    const validationResults = await surveyService.validateSurveyResponses(survey);
+    
+    res.status(200).json({
         status: 'success',
-        data: { survey }
+        data: {
+            surveyId: survey._id,
+            validationResults
+        }
     });
-}; 
+});
+
+export const generateSummary = asyncHandler(async (req, res) => {
+    const survey = await surveyService.generateSurveySummary(req.params.id, req.user._id);
+    if (!survey) {
+        throw new NotFoundError('Survey not found');
+    }
+    if (!survey.responses || survey.responses.length === 0) {
+        throw new ValidationError('No responses available for summarization');
+    }
+    res.status(200).json({
+        status: 'success',
+        data: survey
+    });
+});
+
+export const toggleSummary = asyncHandler(async (req, res) => {
+    const survey = await surveyService.toggleSummaryVisibility(req.params.id, req.user._id);
+    if (!survey) {
+        throw new NotFoundError('Survey not found');
+    }
+    res.status(200).json({
+        status: 'success',
+        data: survey
+    });
+});
+
+// Response operations
+export const submitResponse = asyncHandler(async (req, res) => {
+    const survey = await surveyService.addResponse(req.params.id, req.body, req.user._id);
+    if (!survey) {
+        throw new NotFoundError('Survey not found');
+    }
+    if (survey.isClosed) {
+        throw new ValidationError('Survey is closed');
+    }
+    if (survey.isExpired()) {
+        throw new ValidationError('Survey has expired');
+    }
+    res.status(201).json({
+        status: 'success',
+        data: survey
+    });
+});
+
+export const updateResponse = asyncHandler(async (req, res) => {
+    const survey = await surveyService.updateSurveyResponse(
+        req.params.id,
+        req.params.responseId,
+        req.body,
+        req.user._id
+    );
+    if (!survey) {
+        throw new NotFoundError('Survey not found');
+    }
+    if (survey.isClosed) {
+        throw new ValidationError('Survey is closed');
+    }
+    if (survey.isExpired()) {
+        throw new ValidationError('Survey has expired');
+    }
+    res.status(200).json({
+        status: 'success',
+        data: survey
+    });
+});
+
+export const deleteSurveyResponse = asyncHandler(async (req, res) => {
+    const survey = await surveyService.removeResponse(
+        req.params.id,
+        req.params.responseId,
+        req.user._id
+    );
+    if (!survey) {
+        throw new NotFoundError('Survey not found');
+    }
+    if (survey.isClosed) {
+        throw new ValidationError('Survey is closed');
+    }
+    if (survey.isExpired()) {
+        throw new ValidationError('Survey has expired');
+    }
+    res.status(200).json({
+        status: 'success',
+        data: survey
+    });
+});
+
+export const listResponses = asyncHandler(async (req, res) => {
+    const survey = await surveyService.getSurveyById(req.params.id);
+    if (!survey) {
+        throw new NotFoundError('Survey not found');
+    }
+    res.status(200).json({
+        status: 'success',
+        data: survey.responses
+    });
+}); 

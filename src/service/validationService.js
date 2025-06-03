@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -8,8 +8,8 @@ const __dirname = path.dirname(__filename);
 
 class ValidationService {
     constructor() {
-        this.openai = new OpenAI({
-            apiKey: 'sk-dummy-key-for-development-only'  // Dummy key for development
+        this.anthropic = new Anthropic({
+            apiKey: process.env.ANTHROPIC_API_KEY || 'dummy-key-for-development-only'
         });
         this.validatePrompt = null;
         this.loadPrompts();
@@ -36,23 +36,20 @@ class ValidationService {
         try {
             const prompt = this.validatePrompt.replace('{surveyResponses}', JSON.stringify(surveyResponses));
             
-            const completion = await this.openai.chat.completions.create({
-                model: "gpt-4",
+            const message = await this.anthropic.messages.create({
+                model: "claude-3-opus-20240229",
+                max_tokens: 500,
+                temperature: 0.3,
+                system: "You are a survey validation expert. Analyze the survey responses and identify any violations based on the survey guidelines.",
                 messages: [
-                    {
-                        role: "system",
-                        content: "You are a survey validation expert. Analyze the survey responses and identify any violations based on the survey guidelines."
-                    },
                     {
                         role: "user",
                         content: prompt
                     }
-                ],
-                temperature: 0.3,
-                max_tokens: 500
+                ]
             });
 
-            const response = completion.choices[0].message.content;
+            const response = message.content[0].text;
             const validationResults = JSON.parse(response);
 
             // Transform the results to match the required format
