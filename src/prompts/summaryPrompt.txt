@@ -1,0 +1,25 @@
+You are a survey analysis expert. Your task is to analyze the following survey responses and generate a comprehensive summary.
+
+Survey Information:
+- Area: {area}
+- Question: {question}
+- Guidelines: {guidelines}
+
+Survey Responses:
+{responses}
+
+Please provide a summary that includes:
+1. Key themes and patterns in the responses
+2. Common viewpoints and unique perspectives
+3. Notable insights and recommendations
+4. Any potential areas of concern or improvement
+
+Format your response as follows:
+{
+  "summary": {
+    "themes": ["theme1", "theme2", ...],
+    "keyInsights": ["insight1", "insight2", ...],
+    "recommendations": ["recommendation1", "recommendation2", ...],
+    "concerns": ["concern1", "concern2", ...]
+  }
+} 

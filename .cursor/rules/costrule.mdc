@@ -1,0 +1,39 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Cocnept: 
+This is a Survey Server that allows users to share opinions on various areas in free text, which is then analyzed and summarized by AI.
+A survey is defined by a survey guidelines - basically a prompt to a LLM explaining what the survey is about, which response domains are permitted, what type of responses are permitted, and how to summarize the survey.
+For example:
+Survey area: improving the elementary school playground
+Survey expiry date: 20 days
+survey question: how would you like to improve the school playground?
+permitted domains: what we want to keep, what we want to improve
+permitted responses: use proper language, limit your response to two paragraphs.
+summary instructions: make the summary readable by 6-8 graders, and introduce some humor.
+Another example:
+Survey area: SWOT (strength/weakness/opportunity/threat) analysis of our organization
+Survey expiry date: 20 days
+survey question: provide a SWOT analysis of our organization from your viewpoint
+permitted domains: strengths, weaknesses, opportunities, threats
+permitted responses: no need to relate to competitor Z who went out of business.
+summary instructions: summarize the insights without adding any interpretation on the position of other competitors.
+The server stores all information about surveys and responses in a database.
+Users are allowed to:
+create surveys in any area
+contribute to any survey running on the server, and
+change their responses on open surveys until surveys expire or are closed (only by the creator).
+The server has a natural language search endpoint, which operates as follow:
+E.g., find me all the surveys that relate to food.
+In the background, the server will create a context (all surveys with ids), prepare a prompt to LLM to search the surveys, and send the request to LLM.
+The result would be a list of survey ids, and a short reason why this survey matches the query.
+Server creator can operate on Summarize survey endpoint:
+Works in the same manner
+The summary is stored with the survey, and is then viewable by all users.
+The creator can ask for a summary at any point in time, and show or hide it at will.
+Validate user responses - upon request from the survey creator, based on the instructions in the prompt guidelines and the proposed response, asking the LLM to verify adherence.
+The result would be a list of { surveyId, responseId, reason }
+Survey creator can remove those responses if required.
+

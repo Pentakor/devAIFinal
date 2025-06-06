@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <div class="container">
+    <h2>Welcome to the Survey Platform</h2>
+
+    <div class="actions">
+      <button onclick="window.location.href='create-survey.html'">➕ Create New Survey</button>
+      <button onclick="window.location.href='search.html'">🔍 Search Surveys</button>
+      <button onclick="window.location.href='my-responses.html'">🗂️ My Responses</button>
+    </div>
+
+    <div class="surveys-section">
+      <h3>Open Surveys</h3>
+      <div class="survey-box">
+        <ul id="surveyList"></ul>
+      </div>
+    </div>
+
+    <div class="logout-section">
+      <button onclick="logout()">📕 Logout</button>
+    </div>
+  </div>
+
+  <script>
+    async function fetchSurveys() {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:3000/api/surveys', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const list = document.getElementById('surveyList');
+        data.data.forEach(survey => {
+          const item = document.createElement('li');
+          item.innerHTML = `<strong>${survey.area}</strong>: ${survey.question}`;
+          list.appendChild(item);
+        });
+      } else {
+        alert(data.message || 'Failed to load surveys');
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = 'login.html';
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchSurveys);
+  </script>
+</body>
+</html>
