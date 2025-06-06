@@ -38,7 +38,7 @@
         if (res.ok) {
           localStorage.setItem('token', data.data.token);
           alert('Login successful!');
-          window.location.href = 'dashboard.html'; // שינוי אם צריך
+          window.location.href = 'dashboard.html'; 
         } else {
           alert(data.message || 'Login failed');
         }
