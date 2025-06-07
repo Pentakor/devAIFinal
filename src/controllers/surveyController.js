@@ -42,15 +42,18 @@ export const updateSurvey = asyncHandler(async (req, res) => {
 });
 
 export const deleteSurvey = asyncHandler(async (req, res) => {
-    const survey = await surveyService.deleteSurvey(req.params.id, req.user._id);
-    if (!survey) {
-        throw new NotFoundError('Survey not found');
-    }
-    res.status(204).send();
+    await surveyService.deleteSurvey(req.params.id, req.user._id);
+    res.status(204).send(); 
 });
 
+
+
 export const listSurveys = asyncHandler(async (req, res) => {
-    const surveys = await surveyService.getAllSurveys();
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const surveys = await surveyService.getAllSurveys(page, limit);
+    
     res.status(200).json({
         status: 'success',
         data: surveys

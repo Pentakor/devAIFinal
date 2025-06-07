@@ -2,6 +2,7 @@ import Survey from '../models/Survey.js';
 import { surveySchema, responseSchema } from '../validation/schemas.js';
 import { getPrompt } from '../utils/promptLoader.js';
 import validationService from './validationService.js';
+import Response from '../models/Response.js';
 
 export const createSurvey = async (surveyData, userId) => {
     const { error } = surveySchema.validate(surveyData);
@@ -18,22 +19,27 @@ export const createSurvey = async (surveyData, userId) => {
     return survey;
 };
 
-export const getAllSurveys = async () => {
+export const getAllSurveys = async (page = 1, limit = 10) => {
+    const skip = (page - 1) * limit;
     return Survey.find()
         .populate('creator', 'username')
-        .sort('-createdAt');
+        .sort('-createdAt')
+        .skip(skip)
+        .limit(limit);
 };
 
 export const getSurveyById = async (surveyId) => {
     const survey = await Survey.findById(surveyId)
-        .populate('creator', 'username')
-        .populate('responses.user', 'username');
-    
+        .populate('creator', 'username'); 
+
     if (!survey) {
         throw new Error('Survey not found');
     }
 
-    return survey;
+    const responses = await Response.find({ survey: surveyId })
+        .populate('user', 'username');
+
+    return { ...survey.toObject() }; 
 };
 
 export const updateSurvey = async (surveyId, surveyData, userId) => {
@@ -59,6 +65,27 @@ export const updateSurvey = async (surveyId, surveyData, userId) => {
     await survey.save();
     return survey;
 };
+export const deleteSurvey = async (surveyId, userId) => {
+  
+
+    const survey = await Survey.findById(surveyId);
+    if (!survey) {
+        throw new Error('Survey not found');
+    }
+
+    if (!survey.creator.equals(userId)) {
+     
+        throw new Error('Not authorized to delete this survey');
+    }
+
+    await Response.deleteMany({ survey: surveyId });
+
+    await Survey.deleteOne({ _id: surveyId });
+
+};
+
+
+
 
 export const closeSurvey = async (surveyId, userId) => {
     const survey = await Survey.findById(surveyId);
@@ -143,7 +170,8 @@ export const updateSurveyExpiry = async (surveyId, newExpiryDate, userId) => {
 
     // Validate the new expiry date
     const expiryDate = new Date(newExpiryDate);
-    if (isNaN(expiryDate.getTime())) {
+    if (isNaN(expiryDate.
+        Time())) {
         throw new Error('Invalid expiry date');
     }
 

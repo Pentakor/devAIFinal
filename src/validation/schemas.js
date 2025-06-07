@@ -80,22 +80,25 @@ export const surveySchema = Joi.object({
         .max(1000)
         .required()
         .custom((value, helpers) => {
-            if (!value.endsWith('?')) {
-                return helpers.error('string.custom', { message: 'Question must end with a question mark' });
+            if (!value.endsWith('?')) 
+            {
+                return helpers.message('Question must end with a question mark');
             }
             return value;
         }),
     guidelines: Joi.object({
         permittedDomains: Joi.array()
-            .items(
-                Joi.string()
-                    .pattern(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)
-                    .messages({
-                        'string.pattern.base': 'Invalid domain format'
-                    })
-            )
-            .min(1)
-            .required(),
+    .items(
+        Joi.string()
+            .min(2)
+            .max(100)
+            .pattern(/^[a-zA-Z0-9\s\-]+$/)
+            .messages({
+                'string.pattern.base': 'Domain should contain only letters, numbers, spaces and hyphens'
+            })
+    )
+    .min(1)
+    .required(),
         permittedResponses: Joi.string()
             .min(10)
             .max(500)
@@ -236,9 +239,7 @@ export const naturalSearchSchema = Joi.object({
         .custom((value, helpers) => {
             // Ensure the query is not just a single word
             if (value.split(/\s+/).length < 2) {
-                return helpers.error('string.custom', { 
-                    message: 'Natural language search requires at least two words' 
-                });
+                return helpers.message('Natural language search requires at least two words');
             }
             return value;
         })

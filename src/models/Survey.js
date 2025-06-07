@@ -46,13 +46,15 @@ const surveySchema = new mongoose.Schema({
             type: String,
             required: [true, 'At least one permitted domain is required'],
             trim: true,
+            minlength: [2, 'Domain must be at least 2 characters'],
+            maxlength: [100, 'Domain cannot exceed 100 characters'],
             validate: {
-                validator: function(v) {
-                    return /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v);
-                },
-                message: 'Invalid domain format'
+              validator: function(v) {
+                return /^[a-zA-Z0-9\s\-]+$/.test(v); 
+              },
+              message: 'Permitted domain must contain only letters, numbers, spaces, and hyphens'
             }
-        }],
+          }],          
         permittedResponses: {
             type: String,
             required: [true, 'Permitted responses guidelines are required'],
