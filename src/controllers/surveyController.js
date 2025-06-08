@@ -178,62 +178,33 @@ export const toggleSummary = asyncHandler(async (req, res) => {
 // Response operations
 export const submitResponse = asyncHandler(async (req, res) => {
     const survey = await surveyService.addResponse(req.params.id, req.body, req.user._id);
-    if (!survey) {
-        throw new NotFoundError('Survey not found');
-    }
-    if (survey.isClosed) {
-        throw new ValidationError('Survey is closed');
-    }
-    if (survey.isExpired()) {
-        throw new ValidationError('Survey has expired');
-    }
     res.status(201).json({
-        status: 'success',
-        data: survey
+      status: 'success',
+      data: survey
     });
-});
+  });
+  
 
 export const updateResponse = asyncHandler(async (req, res) => {
-    const survey = await surveyService.updateSurveyResponse(
+    const response = await surveyService.updateSurveyResponse(
         req.params.id,
         req.params.responseId,
         req.body,
         req.user._id
     );
-    if (!survey) {
-        throw new NotFoundError('Survey not found');
-    }
-    if (survey.isClosed) {
-        throw new ValidationError('Survey is closed');
-    }
-    if (survey.isExpired()) {
-        throw new ValidationError('Survey has expired');
-    }
     res.status(200).json({
         status: 'success',
-        data: survey
+        data: response
     });
 });
 
 export const deleteSurveyResponse = asyncHandler(async (req, res) => {
-    const survey = await surveyService.removeResponse(
+    await surveyService.removeResponse(
         req.params.id,
         req.params.responseId,
         req.user._id
     );
-    if (!survey) {
-        throw new NotFoundError('Survey not found');
-    }
-    if (survey.isClosed) {
-        throw new ValidationError('Survey is closed');
-    }
-    if (survey.isExpired()) {
-        throw new ValidationError('Survey has expired');
-    }
-    res.status(200).json({
-        status: 'success',
-        data: survey
-    });
+    res.status(204).send(); // No content
 });
 
 export const listResponses = asyncHandler(async (req, res) => {
@@ -241,8 +212,10 @@ export const listResponses = asyncHandler(async (req, res) => {
     if (!survey) {
         throw new NotFoundError('Survey not found');
     }
+    // Fetch responses for this survey
+    const responses = await Response.find({ survey: req.params.id }).populate('user', 'username');
     res.status(200).json({
         status: 'success',
-        data: survey.responses
+        data: responses
     });
 }); 

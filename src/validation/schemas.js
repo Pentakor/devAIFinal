@@ -1,4 +1,7 @@
 import Joi from 'joi';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
+import Response from '../models/Response.js';
+import Survey from '../models/Survey.js';
 
 // Common schemas
 export const idSchema = Joi.string()
@@ -126,7 +129,11 @@ export const responseSchema = Joi.object({
         .min(10)
         .max(2000)
         .required()
-        .trim()
+        .trim(),
+    metadata: Joi.object({
+        ipAddress: Joi.string().trim(),
+        userAgent: Joi.string().trim()
+    }).optional()
 });
 
 export const searchSchema = Joi.object({
@@ -243,4 +250,49 @@ export const naturalSearchSchema = Joi.object({
             }
             return value;
         })
-}); 
+});
+
+export const addResponse = async (surveyId, responseData, userId) => {
+    const { error } = responseSchema.validate(responseData);
+    if (error) {
+        throw new ValidationError(error.details[0].message);
+    }
+
+    const survey = await Survey.findById(surveyId);
+    if (!survey) {
+        throw new NotFoundError('Survey not found');
+    }
+
+    if (survey.isClosed) {
+        throw new ValidationError('Survey is closed');
+    }
+
+    if (survey.isExpired()) {
+        throw new ValidationError('Survey has expired');
+    }
+
+    // Use findOneAndUpdate with upsert for atomic operation
+    const response = await Response.findOneAndUpdate(
+        { survey: surveyId, user: userId },
+        {
+            content: responseData.content,
+            updatedAt: new Date()
+        },
+        {
+            new: true,
+            upsert: true,
+            runValidators: true
+        }
+    );
+
+    // Get the updated survey with responses
+    const updatedSurvey = await Survey.findById(surveyId)
+        .populate('creator', 'username');
+
+    const responses = await Response.find({ survey: surveyId })
+        .populate('user', 'username');
+
+    const result = updatedSurvey.toObject();
+    result.responses = responses;
+    return result;
+}; 

@@ -3,6 +3,7 @@ import { surveySchema, responseSchema } from '../validation/schemas.js';
 import { getPrompt } from '../utils/promptLoader.js';
 import validationService from './validationService.js';
 import Response from '../models/Response.js';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
 
 export const createSurvey = async (surveyData, userId) => {
     const { error } = surveySchema.validate(surveyData);
@@ -39,7 +40,7 @@ export const getSurveyById = async (surveyId) => {
     const responses = await Response.find({ survey: surveyId })
         .populate('user', 'username');
 
-    return { ...survey.toObject() }; 
+    return survey; 
 };
 
 export const updateSurvey = async (surveyId, surveyData, userId) => {
@@ -105,44 +106,51 @@ export const closeSurvey = async (surveyId, userId) => {
 export const addResponse = async (surveyId, responseData, userId) => {
     const { error } = responseSchema.validate(responseData);
     if (error) {
-        throw new Error(error.details[0].message);
+        throw new ValidationError(error.details[0].message);
     }
 
-    const survey = await Survey.findById(surveyId)
-        .populate('creator', 'username')
-        .populate('responses.user', 'username');
-    
+    const survey = await Survey.findById(surveyId);
     if (!survey) {
-        throw new Error('Survey not found');
+        throw new NotFoundError('Survey not found');
     }
 
     if (survey.isClosed) {
-        throw new Error('Survey is closed');
+        throw new ValidationError('Survey is closed');
     }
 
-    if (new Date() > survey.expiryDate) {
-        throw new Error('Survey has expired');
+    if (survey.isExpired()) {
+        throw new ValidationError('Survey has expired');
     }
 
-    // Check if user has already submitted a response
-    const existingResponse = survey.responses.find(
-        r => r.user.toString() === userId.toString()
+    // Use findOneAndUpdate with upsert for atomic operation
+    const response = await Response.findOneAndUpdate(
+        { survey: surveyId, user: userId },
+        {
+            content: responseData.content,
+            metadata: {
+                ipAddress: responseData.metadata?.ipAddress,
+                userAgent: responseData.metadata?.userAgent,
+                submissionTime: new Date()
+            },
+            updatedAt: new Date()
+        },
+        {
+            new: true,
+            upsert: true,
+            runValidators: true
+        }
     );
 
-    if (existingResponse) {
-        existingResponse.content = responseData.content;
-        existingResponse.updatedAt = new Date();
-    } else {
-        survey.responses.push({
-            user: userId,
-            content: responseData.content,
-            createdAt: new Date(),
-            updatedAt: new Date()
-        });
-    }
+    // Get the updated survey with responses
+    const updatedSurvey = await Survey.findById(surveyId)
+        .populate('creator', 'username');
 
-    await survey.save();
-    return survey;
+    const responses = await Response.find({ survey: surveyId })
+        .populate('user', 'username');
+
+    const result = updatedSurvey.toObject();
+    result.responses = responses;
+    return result;
 };
 
 export const searchSurveys = async (query) => {
@@ -171,7 +179,7 @@ export const updateSurveyExpiry = async (surveyId, newExpiryDate, userId) => {
     // Validate the new expiry date
     const expiryDate = new Date(newExpiryDate);
     if (isNaN(expiryDate.
-        Time())) {
+        getTime())) {
         throw new Error('Invalid expiry date');
     }
 
@@ -188,55 +196,63 @@ export const updateSurveyExpiry = async (surveyId, newExpiryDate, userId) => {
 export const updateSurveyResponse = async (surveyId, responseId, responseData, userId) => {
     const { error } = responseSchema.validate(responseData);
     if (error) {
-        throw new Error(error.details[0].message);
+        throw new ValidationError(error.details[0].message);
     }
 
     const survey = await Survey.findById(surveyId);
     if (!survey) {
-        throw new Error('Survey not found');
+        throw new NotFoundError('Survey not found');
     }
 
-    if (new Date() > survey.expiryDate) {
-        throw new Error('Survey has expired');
+    if (survey.isClosed) {
+        throw new ValidationError('Survey is closed');
+    }
+    if (survey.isExpired()) {
+        throw new ValidationError('Survey has expired');
     }
 
-    const response = survey.responses.id(responseId);
+    // Find the response in the Response collection
+    const response = await Response.findOne({ _id: responseId, survey: surveyId, user: userId });
     if (!response) {
-        throw new Error('Response not found');
-    }
-
-    if (response.user.toString() !== userId.toString()) {
-        throw new Error('Not authorized to update this response');
+        throw new NotFoundError('Response not found');
     }
 
     response.content = responseData.content;
     response.updatedAt = new Date();
-    await survey.save();
-    return survey;
+    await response.save();
+
+    // Optionally, return the updated response or the survey with all responses
+    return response;
 };
 
 export const removeResponse = async (surveyId, responseId, userId) => {
     const survey = await Survey.findById(surveyId);
     if (!survey) {
-        throw new Error('Survey not found');
+        throw new NotFoundError('Survey not found');
     }
 
-    if (new Date() > survey.expiryDate) {
-        throw new Error('Survey has expired');
+    if (survey.isClosed) {
+        throw new ValidationError('Survey is closed');
+    }
+    if (survey.isExpired()) {
+        throw new ValidationError('Survey has expired');
     }
 
-    const response = survey.responses.id(responseId);
+    // Find the response in the Response collection
+    const response = await Response.findOne({ _id: responseId, survey: surveyId });
     if (!response) {
-        throw new Error('Response not found');
+        throw new NotFoundError('Response not found');
     }
 
-    if (response.user.toString() !== userId.toString()) {
-        throw new Error('Not authorized to delete this response');
+    // Only the owner of the response or the survey creator can delete
+    if (response.user.toString() !== userId.toString() && survey.creator.toString() !== userId.toString()) {
+        throw new ValidationError('Not authorized to delete this response');
     }
 
-    survey.responses.pull(responseId);
-    await survey.save();
-    return survey;
+    await Response.deleteOne({ _id: responseId });
+
+    // Optionally, return a success message or nothing
+    return { success: true };
 };
 
 export const validateSurveyResponses = async (survey) => {
