@@ -2,7 +2,6 @@ import express from 'express';
 import { 
     createSurvey,
     getSurvey,
-    updateSurvey,
     deleteSurvey,
     listSurveys,
     searchSurveys,
@@ -61,14 +60,6 @@ router.get('/search/natural',
 router.get('/:id',
     validateParams(idParamSchema),
     asyncHandler(getSurvey)
-);
-
-router.put('/:id',
-    validateParams(idParamSchema),
-    validateRequest(surveySchema),
-    authorizeCreator,
-    checkSurveyExpiry,
-    asyncHandler(updateSurvey)
 );
 
 router.delete('/:id',

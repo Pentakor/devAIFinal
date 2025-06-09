@@ -3,30 +3,57 @@ import { surveySchema, responseSchema } from '../validation/schemas.js';
 import { getPrompt } from '../utils/promptLoader.js';
 import validationService from './validationService.js';
 import Response from '../models/Response.js';
-import { ValidationError, NotFoundError } from '../utils/errors.js';
+import { ValidationError, NotFoundError, ConflictError } from '../utils/errors.js';
+import { generateAISummary } from './aiService.js';
 
 export const createSurvey = async (surveyData, userId) => {
     const { error } = surveySchema.validate(surveyData);
     if (error) {
-        throw new Error(error.details[0].message);
+        throw new ValidationError(error.details[0].message);
     }
 
-    const survey = new Survey({
-        ...surveyData,
-        creator: userId
-    });
+    try {
+        const survey = new Survey({
+            ...surveyData,
+            creator: userId
+        });
 
-    await survey.save();
-    return survey;
+        await survey.save();
+        return survey;
+    } catch (err) {
+        if (err.code === 11000) {
+            throw new ConflictError('A survey with the same question and guidelines already exists');
+        }
+        throw err;
+    }
 };
 
 export const getAllSurveys = async (page = 1, limit = 10) => {
     const skip = (page - 1) * limit;
-    return Survey.find()
+    const surveys = await Survey.find()
         .populate('creator', 'username')
         .sort('-createdAt')
         .skip(skip)
-        .limit(limit);
+        .limit(limit)
+        .lean();
+
+    // Parse summary content for each survey and remove if not visible
+    surveys.forEach(survey => {
+        if (survey.summary) {
+            if (survey.summary.isVisible && survey.summary.content) {
+                try {
+                    survey.summary.content = JSON.parse(survey.summary.content);
+                } catch (error) {
+                    console.error('Error parsing summary content:', error);
+                }
+            } else {
+                // Remove summary if not visible
+                delete survey.summary;
+            }
+        }
+    });
+
+    return surveys;
 };
 
 export const getSurveyById = async (surveyId) => {
@@ -34,59 +61,42 @@ export const getSurveyById = async (surveyId) => {
         .populate('creator', 'username'); 
 
     if (!survey) {
-        throw new Error('Survey not found');
+        throw new NotFoundError('Survey not found');
     }
 
     const responses = await Response.find({ survey: surveyId })
         .populate('user', 'username');
 
-    return survey; 
+    // Convert to plain object to modify
+    const surveyObj = survey.toObject();
+    
+    // Remove summary if not visible
+    if (surveyObj.summary && !surveyObj.summary.isVisible) {
+        delete surveyObj.summary;
+    } else if (surveyObj.summary && surveyObj.summary.content) {
+        try {
+            surveyObj.summary.content = JSON.parse(surveyObj.summary.content);
+        } catch (error) {
+            console.error('Error parsing summary content:', error);
+        }
+    }
+
+    return surveyObj;
 };
 
-export const updateSurvey = async (surveyId, surveyData, userId) => {
-    const { error } = surveySchema.validate(surveyData);
-    if (error) {
-        throw new Error(error.details[0].message);
-    }
-
-    const survey = await Survey.findById(surveyId);
-    if (!survey) {
-        throw new Error('Survey not found');
-    }
-
-    if (survey.creator.toString() !== userId.toString()) {
-        throw new Error('Not authorized to update this survey');
-    }
-
-    if (new Date() > survey.expiryDate) {
-        throw new Error('Survey has expired');
-    }
-
-    Object.assign(survey, surveyData);
-    await survey.save();
-    return survey;
-};
 export const deleteSurvey = async (surveyId, userId) => {
-  
-
     const survey = await Survey.findById(surveyId);
     if (!survey) {
         throw new Error('Survey not found');
     }
 
     if (!survey.creator.equals(userId)) {
-     
         throw new Error('Not authorized to delete this survey');
     }
 
     await Response.deleteMany({ survey: surveyId });
-
     await Survey.deleteOne({ _id: surveyId });
-
 };
-
-
-
 
 export const closeSurvey = async (surveyId, userId) => {
     const survey = await Survey.findById(surveyId);
@@ -267,19 +277,31 @@ export const validateSurveyResponses = async (survey) => {
 };
 
 export const generateSurveySummary = async (surveyId, userId, prompts) => {
+    // First get the survey
     const survey = await Survey.findById(surveyId)
-        .populate('creator', 'username')
-        .populate('responses.user', 'username');
+        .populate('creator', 'username');
     
     if (!survey) {
         throw new Error('Survey not found');
     }
 
-    if (survey.creator.toString() !== userId.toString()) {
+    // Get the creator ID, handling both populated and unpopulated cases
+    const creatorId = survey.creator._id ? survey.creator._id.toString() : survey.creator.toString();
+    const requestingUserId = userId.toString();
+
+    // Debug logging
+    console.log('Creator ID:', creatorId);
+    console.log('Requesting User ID:', requestingUserId);
+
+    if (creatorId !== requestingUserId) {
         throw new Error('Not authorized to generate summary for this survey');
     }
 
-    if (survey.responses.length === 0) {
+    // Get responses separately
+    const responses = await Response.find({ survey: surveyId })
+        .populate('user', 'username');
+
+    if (responses.length === 0) {
         throw new Error('No responses available for summarization');
     }
 
@@ -288,14 +310,17 @@ export const generateSurveySummary = async (surveyId, userId, prompts) => {
         area: survey.area,
         question: survey.question,
         guidelines: survey.guidelines,
-        responses: survey.responses.map(r => ({
+        responses: responses.map(r => ({
             content: r.content,
             user: r.user.username
         }))
     };
 
-    // Get the summary prompt template
-    const summaryPrompt = getPrompt(prompts, 'summaryPrompt');
+    // Get the summary prompt template from loaded prompts
+    const summaryPrompt = prompts.summaryPrompt;
+    if (!summaryPrompt) {
+        throw new Error('Summary prompt template not found');
+    }
     
     // Replace placeholders in the prompt
     const filledPrompt = summaryPrompt
@@ -304,24 +329,49 @@ export const generateSurveySummary = async (surveyId, userId, prompts) => {
         .replace('{guidelines}', JSON.stringify(surveyData.guidelines))
         .replace('{responses}', JSON.stringify(surveyData.responses));
 
-    // TODO: Call AI service to generate summary
-    // For now, return a mock summary
-    const summary = {
-        themes: ['Theme 1', 'Theme 2'],
-        keyInsights: ['Insight 1', 'Insight 2'],
-        recommendations: ['Recommendation 1', 'Recommendation 2'],
-        concerns: ['Concern 1', 'Concern 2']
+    // Generate summary using AI service
+    const summary = await generateAISummary(filledPrompt);
+
+    // Stringify the summary content before saving
+    const summaryContent = JSON.stringify(summary);
+
+    // Get the survey document
+    const surveyToUpdate = await Survey.findById(surveyId);
+    if (!surveyToUpdate) {
+        throw new Error('Survey not found');
+    }
+
+    // Update the summary fields
+    surveyToUpdate.summary = {
+        content: summaryContent,
+        lastUpdated: new Date(),
+        isVisible: false
     };
 
-    // Update survey with the new summary
-    survey.summary = {
-        content: summary,
-        isVisible: true,
-        lastUpdated: new Date()
-    };
+    // Save the updated survey
+    const updatedSurvey = await surveyToUpdate.save();
+    if (!updatedSurvey) {
+        throw new Error('Failed to update survey summary');
+    }
 
-    await survey.save();
-    return survey;
+    // Get the final survey with populated responses
+    const finalSurvey = await Survey.findById(surveyId)
+        .populate('creator', 'username')
+        .populate({
+            path: 'responses',
+            populate: {
+                path: 'user',
+                select: 'username'
+            }
+        })
+        .lean();
+
+    // Parse the summary content back to an object for the response
+    if (finalSurvey.summary && finalSurvey.summary.content) {
+        finalSurvey.summary.content = JSON.parse(finalSurvey.summary.content);
+    }
+
+    return finalSurvey;
 };
 
 export const toggleSummaryVisibility = async (surveyId, userId) => {

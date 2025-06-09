@@ -20,41 +20,23 @@ const surveySchema = new mongoose.Schema({
         required: [true, 'Area is required'],
         trim: true,
         minlength: [3, 'Area must be at least 3 characters long'],
-        maxlength: [100, 'Area cannot exceed 100 characters'],
-        validate: {
-            validator: function(v) {
-                return /^[a-zA-Z0-9\s-_]+$/.test(v);
-            },
-            message: 'Area can only contain letters, numbers, spaces, hyphens, and underscores'
-        }
+        maxlength: [100, 'Area cannot exceed 100 characters']
     },
     question: {
         type: String,
         required: [true, 'Question is required'],
         trim: true,
         minlength: [10, 'Question must be at least 10 characters long'],
-        maxlength: [1000, 'Question cannot exceed 1000 characters'],
-        validate: {
-            validator: function(v) {
-                return v.endsWith('?');
-            },
-            message: 'Question must end with a question mark'
-        }
+        maxlength: [1000, 'Question cannot exceed 1000 characters']
     },
     guidelines: {
-        permittedDomains: [{
+        permittedDomains: {
             type: String,
-            required: [true, 'At least one permitted domain is required'],
+            required: [true, 'Permitted domains are required'],
             trim: true,
             minlength: [2, 'Domain must be at least 2 characters'],
-            maxlength: [100, 'Domain cannot exceed 100 characters'],
-            validate: {
-              validator: function(v) {
-                return /^[a-zA-Z0-9\s\-]+$/.test(v); 
-              },
-              message: 'Permitted domain must contain only letters, numbers, spaces, and hyphens'
-            }
-          }],          
+            maxlength: [500, 'Domain cannot exceed 500 characters']
+        },
         permittedResponses: {
             type: String,
             required: [true, 'Permitted responses guidelines are required'],
@@ -117,8 +99,11 @@ const surveySchema = new mongoose.Schema({
             validate: {
                 validator: function(v) {
                     // Can only be visible if there's content
-                    if (v && !this.content) {
-                        return false;
+                    if (v) {
+                        const content = this.getUpdate ? 
+                            this.getUpdate()['summary.content'] : 
+                            (this.summary && this.summary.content);
+                        return !!content;
                     }
                     return true;
                 },
@@ -145,10 +130,18 @@ surveySchema.index({ creator: 1, createdAt: -1 });
 surveySchema.index({ expiryDate: 1 });
 surveySchema.index({ isClosed: 1 });
 surveySchema.index({ 'guidelines.permittedDomains': 1 });
+surveySchema.index({ question: 1, 'guidelines.permittedDomains': 1, 'guidelines.permittedResponses': 1, 'guidelines.summaryInstructions': 1 }, { unique: true });
 
 // Virtual for response count
 surveySchema.virtual('responseCount').get(function() {
     return this.responses ? this.responses.length : 0;
+});
+
+// Virtual for responses
+surveySchema.virtual('responses', {
+    ref: 'Response',
+    localField: '_id',
+    foreignField: 'survey'
 });
 
 // Method to check if survey is expired

@@ -9,6 +9,13 @@ import {
 } from '../utils/errors.js';
 import * as surveyService from '../service/surveyService.js';
 import { asyncHandler } from '../utils/errors.js';
+import { loadPrompts } from '../utils/promptLoader.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const promptsDir = path.join(__dirname, '..', 'prompts');
 
 // Survey controllers
 export const createSurvey = asyncHandler(async (req, res) => {
@@ -30,23 +37,10 @@ export const getSurvey = asyncHandler(async (req, res) => {
     });
 });
 
-export const updateSurvey = asyncHandler(async (req, res) => {
-    const survey = await surveyService.updateSurvey(req.params.id, req.body, req.user._id);
-    if (!survey) {
-        throw new NotFoundError('Survey not found');
-    }
-    res.status(200).json({
-        status: 'success',
-        data: survey
-    });
-});
-
 export const deleteSurvey = asyncHandler(async (req, res) => {
     await surveyService.deleteSurvey(req.params.id, req.user._id);
     res.status(204).send(); 
 });
-
-
 
 export const listSurveys = asyncHandler(async (req, res) => {
     const page = parseInt(req.query.page) || 1;
@@ -151,13 +145,14 @@ export const validateResponses = asyncHandler(async (req, res) => {
 });
 
 export const generateSummary = asyncHandler(async (req, res) => {
-    const survey = await surveyService.generateSurveySummary(req.params.id, req.user._id);
+    // Load prompts
+    const prompts = await loadPrompts(promptsDir);
+    
+    const survey = await surveyService.generateSurveySummary(req.params.id, req.user._id, prompts);
     if (!survey) {
         throw new NotFoundError('Survey not found');
     }
-    if (!survey.responses || survey.responses.length === 0) {
-        throw new ValidationError('No responses available for summarization');
-    }
+    
     res.status(200).json({
         status: 'success',
         data: survey
