@@ -18,7 +18,9 @@ export const connectDB = async () => {
 export const closeDB = async () => {
   await mongoose.connection.dropDatabase();
   await mongoose.connection.close();
-  await mongod.stop();
+  if (mongod) {
+    await mongod.stop();
+  }
 };
 
 // Clear all data in the database
@@ -28,4 +30,4 @@ export const clearDB = async () => {
     const collection = collections[key];
     await collection.deleteMany();
   }
-}; 
+};
