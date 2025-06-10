@@ -31,28 +31,23 @@
             "type": "string",
             "description": "The area or topic of the survey",
             "minLength": 3,
-            "maxLength": 100,
-            "pattern": "^[a-zA-Z0-9\\s-_]+$"
+            "maxLength": 100
           },
           "question": {
             "type": "string",
             "description": "The main question of the survey",
             "minLength": 10,
-            "maxLength": 1000,
-            "pattern": ".*\\?$"
+            "maxLength": 1000
           },
           "guidelines": {
             "type": "object",
             "required": ["permittedDomains", "permittedResponses", "summaryInstructions"],
             "properties": {
               "permittedDomains": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "pattern": "^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
-                },
-                "minItems": 1,
-                "description": "List of permitted response domains"
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 500,
+                "description": "Description of the survey's context and scope"
               },
               "permittedResponses": {
                 "type": "string",
@@ -71,7 +66,7 @@
           "expiryDate": {
             "type": "string",
             "format": "date-time",
-            "description": "Survey expiry date (must be between now and 1 year from now)"
+            "description": "Survey expiry date in ISO 8601 format (YYYY-MM-DDTHH:mm:ss.sssZ). Must be between now and 1 year from now. Example: 2025-03-19T08:13:52.422Z"
           }
         }
       },
@@ -389,45 +384,6 @@
           }
         }
       },
-      "put": {
-        "tags": ["Surveys"],
-        "summary": "Update survey",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Survey"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Survey updated successfully"
-          },
-          "403": {
-            "description": "Not authorized to update this survey",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
       "delete": {
         "tags": ["Surveys"],
         "summary": "Delete survey",
@@ -468,8 +424,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
-            }
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{24}$"
+            },
+            "description": "Survey ID"
           }
         ],
         "requestBody": {
@@ -477,17 +435,52 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Response"
+                "type": "object",
+                "required": ["content"],
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "description": "The response content",
+                    "minLength": 10,
+                    "maxLength": 2000
+                  }
+                }
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Response submitted successfully"
+            "description": "Response submitted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["success"]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Survey"
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
-            "description": "Invalid input",
+            "description": "Invalid input or survey is closed/expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Survey not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -806,41 +799,6 @@
             }
           }
         }
-      },
-      "put": {
-        "tags": ["Surveys"],
-        "summary": "Toggle survey summary visibility",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["isSummaryVisible"],
-                "properties": {
-                  "isSummaryVisible": {
-                    "type": "boolean"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Summary visibility updated successfully"
-          }
-        }
       }
     },
     "/api/surveys/{id}/responses/{responseId}": {
@@ -962,71 +920,6 @@
         "responses": {
           "200": {
             "description": "Summary visibility updated successfully"
-          }
-        }
-      }
-    },
-    "/api/validation/validate": {
-      "post": {
-        "tags": ["Validation"],
-        "summary": "Validate survey responses",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["surveyResponses"],
-                "properties": {
-                  "surveyResponses": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                      "type": "object",
-                      "required": ["surveyId", "responseId", "content"],
-                      "properties": {
-                        "surveyId": {
-                          "type": "string",
-                          "pattern": "^[0-9a-fA-F]{24}$"
-                        },
-                        "responseId": {
-                          "type": "string",
-                          "pattern": "^[0-9a-fA-F]{24}$"
-                        },
-                        "content": {
-                          "type": "string",
-                          "minLength": 10,
-                          "maxLength": 2000
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Validation results",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "valid": {
-                      "type": "boolean"
-                    },
-                    "invalidResponses": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  }
-                }
-              }
-            }
           }
         }
       }

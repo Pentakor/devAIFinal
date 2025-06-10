@@ -73,35 +73,16 @@ export const surveySchema = Joi.object({
     area: Joi.string()
         .min(3)
         .max(100)
-        .required()
-        .pattern(/^[a-zA-Z0-9\s-_]+$/)
-        .messages({
-            'string.pattern.base': 'Area can only contain letters, numbers, spaces, hyphens, and underscores'
-        }),
+        .required(),
     question: Joi.string()
         .min(10)
         .max(1000)
-        .required()
-        .custom((value, helpers) => {
-            if (!value.endsWith('?')) 
-            {
-                return helpers.message('Question must end with a question mark');
-            }
-            return value;
-        }),
+        .required(),
     guidelines: Joi.object({
-        permittedDomains: Joi.array()
-    .items(
-        Joi.string()
+        permittedDomains: Joi.string()
             .min(2)
-            .max(100)
-            .pattern(/^[a-zA-Z0-9\s\-]+$/)
-            .messages({
-                'string.pattern.base': 'Domain should contain only letters, numbers, spaces and hyphens'
-            })
-    )
-    .min(1)
-    .required(),
+            .max(500)
+            .required(),
         permittedResponses: Joi.string()
             .min(10)
             .max(500)
