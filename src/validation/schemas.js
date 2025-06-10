@@ -257,6 +257,11 @@ export const addResponse = async (surveyId, responseData, userId) => {
         { survey: surveyId, user: userId },
         {
             content: responseData.content,
+            metadata: {
+                ipAddress: responseData.metadata?.ipAddress,
+                userAgent: responseData.metadata?.userAgent,
+                submissionTime: new Date()
+            },
             updatedAt: new Date()
         },
         {

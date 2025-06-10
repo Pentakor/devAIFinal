@@ -1,10 +1,11 @@
 import Survey from '../models/Survey.js';
 import { surveySchema, responseSchema } from '../validation/schemas.js';
 import { getPrompt } from '../utils/promptLoader.js';
-import validationService from './validationService.js';
 import Response from '../models/Response.js';
 import { ValidationError, NotFoundError, ConflictError } from '../utils/errors.js';
-import { generateAISummary } from './aiService.js';
+import { generateAISummary, validateSurveyResponses } from './aiService.js';
+import path from 'path';
+import { loadPrompts } from '../utils/promptLoader.js';
 
 export const createSurvey = async (surveyData, userId) => {
     const { error } = surveySchema.validate(surveyData);
@@ -137,6 +138,8 @@ export const addResponse = async (surveyId, responseData, userId) => {
         { survey: surveyId, user: userId },
         {
             content: responseData.content,
+            validation: 'pending',
+            violationExplanation: '',
             metadata: {
                 ipAddress: responseData.metadata?.ipAddress,
                 userAgent: responseData.metadata?.userAgent,
@@ -265,14 +268,85 @@ export const removeResponse = async (surveyId, responseId, userId) => {
     return { success: true };
 };
 
-export const validateSurveyResponses = async (survey) => {
+export const validateSurveyResponsesWithAI = async (survey) => {
     try {
-        const validationPrompt = getPrompt('validatePrompt');
-        const validationResult = await validationService.validateSurveyResponses(survey.responses);
-        return validationResult;
+        console.log('Starting validation for survey:', survey._id);
+        
+        // Get responses for the survey
+        const responses = await Response.find({ survey: survey._id })
+            .populate('user', 'username');
+        
+        console.log(`Found ${responses.length} responses to validate`);
+
+        // Load prompts
+        const promptsDir = path.join(process.cwd(), 'src', 'prompts');
+        const prompts = await loadPrompts(promptsDir);
+        console.log('Loaded prompts successfully');
+
+        // Get the validation prompt template
+        const validationPrompt = getPrompt(prompts, 'validatePrompt');
+        if (!validationPrompt) {
+            throw new Error('Validation prompt template not found');
+        }
+
+        // Prepare survey guidelines
+        const permittedDomains = Array.isArray(survey.guidelines?.permittedDomains) 
+            ? survey.guidelines.permittedDomains 
+            : [];
+        const permittedResponses = Array.isArray(survey.guidelines?.permittedResponses)
+            ? survey.guidelines.permittedResponses
+            : [];
+
+        // Prepare the prompt with survey data
+        const filledPrompt = validationPrompt
+            .replace('{question}', survey.question || '')
+            .replace('{permittedDomains}', permittedDomains.join(', ') || 'No specific domains required')
+            .replace('{permittedResponses}', permittedResponses.join(', ') || 'No specific response format required')
+            .replace('{surveyResponses}', JSON.stringify(responses.map(r => ({
+                id: r._id,
+                content: r.content,
+                user: r.user.username
+            }))));
+
+        console.log('Prepared validation prompt');
+
+        // Use AI service to validate responses
+        const validationResults = await validateSurveyResponses(filledPrompt);
+        console.log('Received validation results:', validationResults);
+        
+        // First, mark all responses as approved by default
+        console.log('Marking all responses as approved by default');
+        for (const response of responses) {
+            await response.markAsApproved();
+        }
+
+        // Then, mark only the responses in violations list as violations
+        if (validationResults && validationResults.violations && Array.isArray(validationResults.violations)) {
+            console.log(`Processing ${validationResults.violations.length} violations`);
+            for (const violation of validationResults.violations) {
+                const response = responses.find(r => r._id.toString() === violation.responseId);
+                if (response) {
+                    console.log(`Marking response ${violation.responseId} as violation`);
+                    await response.markAsViolation(violation.explanation);
+                } else {
+                    console.warn(`Response ${violation.responseId} not found in survey responses`);
+                }
+            }
+        } else {
+            console.log('No violations found in validation results');
+        }
+
+        return {
+            totalResponses: responses.length,
+            validatedResponses: responses.length,
+            violations: validationResults?.violations || []
+        };
     } catch (error) {
-        console.error('Error validating survey responses:', error);
-        throw new Error('Failed to validate survey responses');
+        console.error('Error in validateSurveyResponsesWithAI:', error);
+        if (error.response) {
+            console.error('API error details:', error.response.data);
+        }
+        throw new Error(`Failed to validate survey responses: ${error.message}`);
     }
 };
 
@@ -395,7 +469,7 @@ export const toggleSummaryVisibility = async (surveyId, userId) => {
 export const searchSurveysByQuery = async (query, prompts) => {
     try {
         const searchPrompt = getPrompt('searchPrompt');
-        const searchResults = await validationService.validateSurveyResponses(query);
+        const searchResults = await validateSurveyResponses(query);
         return searchResults;
     } catch (error) {
         console.error('Error searching surveys:', error);

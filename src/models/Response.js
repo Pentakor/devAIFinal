@@ -20,13 +20,29 @@ const responseSchema = new mongoose.Schema({
     minlength: [10, 'Response must be at least 10 characters long'],
     maxlength: [2000, 'Response cannot exceed 2000 characters']
   },
-  status: {
+  validation: {
     type: String,
     enum: {
-      values: ['pending', 'approved', 'rejected'],
-      message: '{VALUE} is not a valid status'
+      values: ['pending', 'violation', 'approved'],
+      message: '{VALUE} is not a valid validation status'
     },
-    default: 'pending'
+    default: 'pending',
+    index: true
+  },
+  violationExplanation: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Violation explanation cannot exceed 500 characters'],
+    validate: {
+      validator: function(v) {
+        // Only require explanation if validation is 'violation'
+        if (this.validation === 'violation') {
+          return v && v.length >= 10;
+        }
+        return true;
+      },
+      message: 'Violation explanation is required and must be at least 10 characters when validation status is violation'
+    }
   },
   validationNotes: {
     type: String,
@@ -60,26 +76,22 @@ const responseSchema = new mongoose.Schema({
 
 // Indexes
 responseSchema.index({ survey: 1, user: 1 }, { unique: true });
-responseSchema.index({ status: 1, createdAt: -1 });
+responseSchema.index({ validation: 1, createdAt: -1 });
 responseSchema.index({ 'metadata.submissionTime': -1 });
 
 // Instance methods
-responseSchema.methods.isValid = function () {
-  return this.status === 'approved';
-};
-
-responseSchema.methods.approve = async function (notes) {
-  if (this.status === 'approved') throw new Error('Response is already approved');
-  this.status = 'approved';
-  if (notes) this.validationNotes = notes;
+responseSchema.methods.markAsViolation = async function(explanation) {
+  if (!explanation) {
+    throw new Error('Violation explanation is required');
+  }
+  this.validation = 'violation';
+  this.violationExplanation = explanation;
   return this.save();
 };
 
-responseSchema.methods.reject = async function (notes) {
-  if (this.status === 'rejected') throw new Error('Response is already rejected');
-  if (!notes) throw new Error('Rejection notes are required');
-  this.status = 'rejected';
-  this.validationNotes = notes;
+responseSchema.methods.markAsApproved = async function() {
+  this.validation = 'approved';
+  this.violationExplanation = undefined;
   return this.save();
 };
 
@@ -95,24 +107,13 @@ responseSchema.statics.getByUser = function (userId) {
 };
 
 responseSchema.statics.getPending = function () {
-  return this.find({ status: 'pending' })
+  return this.find({ validation: 'pending' })
     .populate('survey', 'area question')
     .populate('user', 'username email')
     .sort({ createdAt: 1 });
 };
 
 // Middleware
-responseSchema.pre('save', async function (next) {
-  if (this.isModified('status')) {
-    const Survey = mongoose.model('Survey');
-    const survey = await Survey.findById(this.survey);
-    if (!survey || !survey.isActive()) {
-      return next(new Error('Cannot modify response for closed or expired survey'));
-    }
-  }
-  next();
-});
-
 responseSchema.pre('validate', async function (next) {
   try {
     const Survey = mongoose.model('Survey');
@@ -125,14 +126,16 @@ responseSchema.pre('validate', async function (next) {
     if (!user || !user.isActive) this.invalidate('user', 'User must be active');
 
     if (this.content && survey?.guidelines?.permittedDomains?.length > 0) {
-      const regex = new RegExp(survey.guidelines.permittedDomains.join('|'), 'i');
-      if (!regex.test(this.content)) {
-        this.invalidate('content', 'Response content must match permitted domains');
+      const permittedDomains = Array.isArray(survey.guidelines.permittedDomains) 
+        ? survey.guidelines.permittedDomains 
+        : [];
+      
+      if (permittedDomains.length > 0) {
+        const regex = new RegExp(permittedDomains.join('|'), 'i');
+        if (!regex.test(this.content)) {
+          this.invalidate('content', 'Response content must match permitted domains');
+        }
       }
-    }
-
-    if (this.isModified('status') && !survey?.isActive()) {
-      this.invalidate('status', 'Cannot change status for closed or expired surveys');
     }
 
     next();

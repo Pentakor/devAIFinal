@@ -129,11 +129,15 @@ export const validateResponses = asyncHandler(async (req, res) => {
         throw new NotFoundError('Survey not found');
     }
 
-    if (survey.creator.toString() !== req.user._id.toString()) {
+    // Get the creator ID, handling both populated and unpopulated cases
+    const creatorId = survey.creator._id ? survey.creator._id.toString() : survey.creator.toString();
+    const requestingUserId = req.user._id.toString();
+
+    if (creatorId !== requestingUserId) {
         throw new AuthenticationError('Only survey creator can validate responses');
     }
 
-    const validationResults = await surveyService.validateSurveyResponses(survey);
+    const validationResults = await surveyService.validateSurveyResponsesWithAI(survey);
     
     res.status(200).json({
         status: 'success',
@@ -208,7 +212,9 @@ export const listResponses = asyncHandler(async (req, res) => {
         throw new NotFoundError('Survey not found');
     }
     // Fetch responses for this survey
-    const responses = await Response.find({ survey: req.params.id }).populate('user', 'username');
+    const responses = await Response.find({ survey: req.params.id })
+        .populate('user', 'username')
+        .sort({ createdAt: -1 });
     res.status(200).json({
         status: 'success',
         data: responses
