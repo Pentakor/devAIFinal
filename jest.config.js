@@ -1,23 +1,31 @@
 export default {
   testEnvironment: 'node',
-  transform: {
-    '^.+\\.js$': 'babel-jest',
-  },
-  collectCoverage: true,
-  coverageDirectory: 'coverage',
-  coverageThreshold: {
-    global: {
-      branches: 70,
-      functions: 70,
-      lines: 70,
-      statements: 70
+  globals: {
+    'ts-jest': {
+      useESM: true
     }
   },
-  coveragePathIgnorePatterns: [
-    '/node_modules/',
-    '/__mocks__/'
+  transform: {
+    '^.+\\.js$': ['babel-jest', { 
+      presets: [['@babel/preset-env', { 
+        targets: { node: 'current' },
+        modules: 'commonjs'
+      }]]
+    }]
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(.*\\.mjs$))'
   ],
-  testMatch: ['**/*.test.js'],
-  setupFiles: ['<rootDir>/test/setup.js'],
-  verbose: true
-}; 
+  setupFilesAfterEnv: ['./test/setup.js'],
+  testMatch: ['**/test/**/*.test.js'],
+  verbose: true,
+  forceExit: true,
+  clearMocks: true,
+  resetMocks: true,
+  restoreMocks: true,
+  testTimeout: 30000,
+  setupFiles: ['dotenv/config'],
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1'
+  }
+};

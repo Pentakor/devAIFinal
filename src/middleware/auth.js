@@ -66,8 +66,12 @@ export const checkSurveyExpiry = async (req, res, next) => {
         }
 
         if (new Date() > survey.expiryDate) {
-            return res.status(400).json({ message: 'Survey has expired' });
-        }
+            return res.status(403).json({
+                status: 'fail',
+                message: 'Invalid registration code',
+                errorCode: 'FORBIDDEN'
+            });
+                    }
 
         req.survey = survey;
         next();

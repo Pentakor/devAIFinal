@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "main": "src/server.js",
   "scripts": {
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test": "NODE_OPTIONS=--experimental-vm-modules node --experimental-vm-modules node_modules/jest/bin/jest.js --experimental-vm-modules",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "docs": "jsdoc -c jsdoc.json"
