@@ -15,7 +15,8 @@ import {
     validateResponses,
     generateSummary,
     toggleSummary,
-    searchByQuery
+    searchByQuery,
+    deleteBadResponses
 } from '../controllers/surveyController.js';
 import { validateRequest, validateParams, validateQuery } from '../middleware/validateRequest.js';
 import { 
@@ -131,6 +132,12 @@ router.get('/:id/responses',
     validateQuery(paginationSchema),
     authorizeCreator,
     asyncHandler(listResponses)
+);
+
+router.delete('/:id/bad-responses',
+    validateParams(idParamSchema),
+    authorizeCreator,
+    asyncHandler(deleteBadResponses)
 );
 
 export default router; 

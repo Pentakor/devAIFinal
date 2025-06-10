@@ -2,7 +2,7 @@ import Survey from '../models/Survey.js';
 import { surveySchema, responseSchema } from '../validation/schemas.js';
 import { getPrompt } from '../utils/promptLoader.js';
 import Response from '../models/Response.js';
-import { ValidationError, NotFoundError, ConflictError } from '../utils/errors.js';
+import { ValidationError, NotFoundError, ConflictError, AuthorizationError } from '../utils/errors.js';
 import { generateAISummary, validateSurveyResponses } from './aiService.js';
 import path from 'path';
 import { loadPrompts } from '../utils/promptLoader.js';
@@ -519,4 +519,24 @@ export const searchByQuery = async (query) => {
         console.error('Error in semantic search:', error);
         throw new Error('Failed to perform semantic search');
     }
+};
+
+export const deleteBadResponses = async (surveyId, userId) => {
+    const survey = await Survey.findById(surveyId);
+    if (!survey) {
+        throw new NotFoundError('Survey not found');
+    }
+
+    if (survey.creator.toString() !== userId.toString()) {
+        throw new AuthorizationError('Not authorized to delete responses from this survey');
+    }
+
+    const result = await Response.deleteMany({ 
+        survey: surveyId,
+        validation: 'violation'
+    });
+
+    return {
+        deletedCount: result.deletedCount
+    };
 }; 

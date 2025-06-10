@@ -219,4 +219,14 @@ export const listResponses = asyncHandler(async (req, res) => {
         status: 'success',
         data: responses
     });
+});
+
+export const deleteBadResponses = asyncHandler(async (req, res) => {
+    const result = await surveyService.deleteBadResponses(req.params.id, req.user._id);
+    res.status(200).json({
+        status: 'success',
+        data: {
+            deletedCount: result.deletedCount
+        }
+    });
 }); 
