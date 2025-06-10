@@ -58,10 +58,18 @@ export const searchSurveys = asyncHandler(async (req, res) => {
     if (!req.query.query) {
         throw new ValidationError('Search query is required');
     }
-    const surveys = await surveyService.searchSurveys(req.query.query);
+
+    const results = await surveyService.searchSurveys(req.query.query);
+    
     res.status(200).json({
         status: 'success',
-        data: surveys
+        data: {
+            results: results.map(result => ({
+                survey: result.survey,
+                relevanceScore: result.relevanceScore,
+                matchReason: result.matchReason
+            }))
+        }
     });
 });
 
@@ -164,7 +172,7 @@ export const generateSummary = asyncHandler(async (req, res) => {
 });
 
 export const toggleSummary = asyncHandler(async (req, res) => {
-    const survey = await surveyService.toggleSummaryVisibility(req.params.id, req.user._id);
+    const survey = await surveyService.toggleSummaryVisibility(req.params.id, req.user._id, req.body.isSummaryVisible);
     if (!survey) {
         throw new NotFoundError('Survey not found');
     }

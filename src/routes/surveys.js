@@ -27,7 +27,8 @@ import {
     responseIdParamSchema,
     paginationSchema,
     updateExpirySchema,
-    naturalSearchSchema
+    naturalSearchSchema,
+    summaryVisibilitySchema
 } from '../validation/schemas.js';
 import { asyncHandler } from '../utils/errors.js';
 import { authenticate, authorizeCreator, checkSurveyExpiry } from '../middleware/auth.js';
@@ -102,6 +103,7 @@ router.post('/:id/summary',
 
 router.put('/:id/summary/visibility',
     validateParams(idParamSchema),
+    validateRequest(summaryVisibilitySchema),
     authorizeCreator,
     asyncHandler(toggleSummary)
 );

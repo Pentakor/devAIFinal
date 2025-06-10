@@ -1,6 +1,12 @@
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
-import { getPrompt } from '../utils/promptLoader.js';
+import { getPrompt, loadPrompts } from '../utils/promptLoader.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const promptsDir = path.join(__dirname, '..', 'prompts');
 
 dotenv.config();
 
@@ -80,5 +86,58 @@ export const validateSurveyResponses = async (prompt) => {
             console.error('OpenAI API error details:', error.response.data);
         }
         throw new Error(`Failed to validate survey responses: ${error.message}`);
+    }
+};
+
+export const searchSurveys = async (query, surveyData) => {
+    try {
+        console.log('Starting AI search with query:', query);
+        
+        // Load all prompts
+        const prompts = await loadPrompts(promptsDir);
+        if (!prompts || !prompts.searchPrompt) {
+            throw new Error('Search prompt template not found');
+        }
+
+        // Fill in the prompt template
+        const filledPrompt = prompts.searchPrompt
+            .replace('{query}', query)
+            .replace('{surveyData}', JSON.stringify(surveyData));
+        
+        const completion = await openai.chat.completions.create({
+            model: "gpt-3.5-turbo",
+            messages: [
+                {
+                    role: "system",
+                    content: "You are a survey search expert. Your task is to analyze the natural language query and find relevant surveys based on their content and metadata."
+                },
+                {
+                    role: "user",
+                    content: filledPrompt
+                }
+            ],
+            temperature: 0.3,
+            max_tokens: 1000
+        });
+
+        const response = completion.choices[0].message.content;
+        console.log('Raw AI search response:', response);
+        
+        // Parse the JSON response
+        try {
+            const parsedResponse = JSON.parse(response);
+            console.log('Parsed search response:', parsedResponse);
+            return parsedResponse;
+        } catch (error) {
+            console.error('Error parsing search response:', error);
+            console.error('Raw response that failed to parse:', response);
+            throw new Error(`Invalid search response format: ${error.message}`);
+        }
+    } catch (error) {
+        console.error('Error in searchSurveys:', error);
+        if (error.response) {
+            console.error('OpenAI API error details:', error.response.data);
+        }
+        throw new Error(`Failed to search surveys: ${error.message}`);
     }
 }; 

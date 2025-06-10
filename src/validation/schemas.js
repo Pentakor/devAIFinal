@@ -105,6 +105,11 @@ export const updateExpirySchema = Joi.object({
         .required()
 });
 
+export const summaryVisibilitySchema = Joi.object({
+    isSummaryVisible: Joi.boolean()
+        .required()
+});
+
 export const responseSchema = Joi.object({
     content: Joi.string()
         .min(10)
