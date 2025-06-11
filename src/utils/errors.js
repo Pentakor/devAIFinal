@@ -14,12 +14,13 @@ export class AppError extends Error {
 }
 
 export class ValidationError extends Error {
-    constructor(message = 'Validation failed') {
+    constructor(message = 'Validation failed', details = null) {
         super(message);
         this.name = 'ValidationError';
         this.statusCode = 400; // Bad Request
         this.status = 'fail';
         this.errorCode = 'VALIDATION_ERROR';
+        this.details = details;
     }
 }
 
@@ -54,7 +55,6 @@ export class ConflictError extends Error {
         this.errorCode = 'CONFLICT_ERROR';
     }
 }
-
 // Error handler middleware
 export const errorHandler = (err, req, res, next) => {
     // Log the error for debugging purposes (Winston will handle this)
@@ -69,18 +69,16 @@ export const errorHandler = (err, req, res, next) => {
 
     // Handle specific error types
     if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
-        // Malformed JSON error
         statusCode = 400;
         status = 'fail';
         message = 'Invalid request format';
-        errorCode = 'VALIDATION_ERROR'; // Matches test expectation
-    } else if (err.name === 'ValidationError') { // Mongoose validation errors
+        errorCode = 'VALIDATION_ERROR';
+    } else if (err.name === 'ValidationError') {
         statusCode = 400;
         status = 'fail';
         message = err.message || 'Validation failed';
         errorCode = 'VALIDATION_ERROR';
     } else if (err.name === 'MongoServerError' && err.code === 11000) {
-        // Mongoose duplicate key error (e.g., unique email/username)
         statusCode = 409;
         status = 'fail';
         message = `Duplicate field value: ${Object.keys(err.keyValue).join(', ')}`;
@@ -91,35 +89,42 @@ export const errorHandler = (err, req, res, next) => {
         message = 'Invalid or expired token';
         errorCode = 'AUTHENTICATION_ERROR';
     } else if (err.name === 'AuthenticationError') {
-        // Custom AuthenticationError
         statusCode = err.statusCode || 401;
         status = err.status || 'fail';
         message = err.message;
         errorCode = err.errorCode || 'AUTHENTICATION_ERROR';
     } else if (err.name === 'ConflictError') {
-        // Custom ConflictError
         statusCode = err.statusCode || 409;
         status = err.status || 'fail';
         message = err.message;
         errorCode = err.errorCode || 'CONFLICT_ERROR';
     } else if (err.name === 'Error' && err.message === 'Invalid password hash') {
-        // Specific error from User model pre-save hook (if it remains)
         statusCode = 400;
         status = 'fail';
         message = 'Invalid password hash';
         errorCode = 'VALIDATION_ERROR';
     }
-    // Add more specific error handling here as needed for other types of errors
 
-    // Send the error response
-    res.status(statusCode).json({
-        status: status,
-        message: message,
-        errorCode: errorCode,
-        // Optionally, include stack trace in development
-        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-    });
+    const errorResponse = {
+        error: {
+            code: errorCode,
+            message: message
+        }
+    };
+    
+    if (err.details) {
+        errorResponse.error.details = err.details;
+    }
+    
+    
+
+    if (process.env.NODE_ENV === 'development') {
+        errorResponse.stack = err.stack;
+    }
+
+    res.status(statusCode).json(errorResponse);
 };
+
 
 // Async handler wrapper
 export const asyncHandler = (fn) => (req, res, next) => {
