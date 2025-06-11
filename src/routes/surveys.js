@@ -15,7 +15,6 @@ import {
     validateResponses,
     generateSummary,
     toggleSummary,
-    searchByQuery,
     deleteBadResponses
 } from '../controllers/surveyController.js';
 import { validateRequest, validateParams, validateQuery } from '../middleware/validateRequest.js';
@@ -27,7 +26,6 @@ import {
     responseIdParamSchema,
     paginationSchema,
     updateExpirySchema,
-    naturalSearchSchema,
     summaryVisibilitySchema
 } from '../validation/schemas.js';
 import { asyncHandler } from '../utils/errors.js';
@@ -54,10 +52,6 @@ router.get('/search',
     asyncHandler(searchSurveys)
 );
 
-router.get('/search/natural',
-    validateQuery(naturalSearchSchema),
-    asyncHandler(searchByQuery)
-);
 
 router.get('/:id',
     validateParams(idParamSchema),

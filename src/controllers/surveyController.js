@@ -73,27 +73,6 @@ export const searchSurveys = asyncHandler(async (req, res) => {
     });
 });
 
-export const searchByQuery = asyncHandler(async (req, res) => {
-    const { query } = req.query;
-    
-    if (!query) {
-        throw new ValidationError('Search query is required');
-    }
-
-    const results = await surveyService.searchByQuery(query);
-    
-    res.status(200).json({
-        status: 'success',
-        data: {
-            results: results.map(result => ({
-                survey: result.survey,
-                relevance: result.relevance,
-                explanation: result.explanation
-            }))
-        }
-    });
-});
-
 // Survey management operations
 export const closeSurvey = asyncHandler(async (req, res) => {
     const survey = await surveyService.closeSurvey(req.params.id, req.user._id);

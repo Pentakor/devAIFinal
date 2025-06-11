@@ -222,21 +222,6 @@ export const surveyResponsesSchema = Joi.object({
         })
 });
 
-// Natural language search schema
-export const naturalSearchSchema = Joi.object({
-    query: Joi.string()
-        .min(2)
-        .max(200)  // Longer max length for natural language queries
-        .required()
-        .trim()
-        .custom((value, helpers) => {
-            // Ensure the query is not just a single word
-            if (value.split(/\s+/).length < 2) {
-                return helpers.message('Natural language search requires at least two words');
-            }
-            return value;
-        })
-});
 
 export const addResponse = async (surveyId, responseData, userId) => {
     const { error } = responseSchema.validate(responseData);

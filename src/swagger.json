@@ -348,44 +348,6 @@
         }
       }
     },
-    "/api/surveys/search/natural": {
-      "get": {
-        "tags": ["Surveys"],
-        "summary": "Search surveys using natural language",
-        "parameters": [
-          {
-            "name": "query",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 2,
-              "maxLength": 200
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Search results",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "results": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Survey"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/surveys/{id}": {
       "get": {
         "tags": ["Surveys"],

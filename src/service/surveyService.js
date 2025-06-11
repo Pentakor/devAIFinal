@@ -548,50 +548,6 @@ export const searchSurveysByQuery = async (query, prompts) => {
     }
 };
 
-export const searchByQuery = async (query) => {
-    if (!query || typeof query !== 'string') {
-        throw new Error('Valid search query is required');
-    }
-
-    // First get all surveys for context
-    const allSurveys = await Survey.find({})
-        .select('_id area question guidelines')
-        .lean();
-
-    // Use LLM to analyze the query and find relevant surveys
-    const searchPrompt = {
-        query,
-        surveys: allSurveys.map(survey => ({
-            id: survey._id,
-            area: survey.area,
-            question: survey.question,
-            domains: survey.guidelines.permittedDomains
-        }))
-    };
-
-    try {
-        const searchResults = await aiService.searchSurveys(searchPrompt);
-        
-        // Get full survey details for matching surveys
-        const matchingSurveys = await Survey.find({
-            _id: { $in: searchResults.map(result => result.surveyId) }
-        }).populate('creator', 'username');
-
-        // Combine LLM results with survey details
-        return matchingSurveys.map(survey => {
-            const result = searchResults.find(r => r.surveyId.toString() === survey._id.toString());
-            return {
-                survey,
-                relevance: result.relevance,
-                explanation: result.explanation
-            };
-        });
-    } catch (error) {
-        console.error('Error in semantic search:', error);
-        throw new Error('Failed to perform semantic search');
-    }
-};
-
 export const deleteBadResponses = async (surveyId, userId) => {
     const survey = await Survey.findById(surveyId);
     if (!survey) {
