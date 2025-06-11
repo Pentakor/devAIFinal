@@ -13,7 +13,7 @@ npm start
 
 ### Access the following:
 
-* Frontend: [http://localhost:3000/index.html](http://localhost:3000/index.html)
+* Frontend: [http://localhost:3000/register.html](http://localhost:3000/register.html)
 * Swagger Documentation: [http://localhost:3000/api-docs/](http://localhost:3000/api-docs/)
 * API Routes: [http://localhost:3000/api/](http://localhost:3000/api/)
 
