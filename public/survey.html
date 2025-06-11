@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>View Survey</title>
+  <link rel="stylesheet" href="dashboard.css" />
+  <style>
+    .response-form {
+      margin-top: 20px;
+      text-align: left;
+    }
+    
+    .response-form textarea {
+      width: 100%;
+      min-height: 150px;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+      margin-bottom: 15px;
+      resize: vertical;
+    }
+    
+    .response-form textarea:focus {
+      outline: none;
+      border-color: #66d9c7;
+    }
+    
+    .submit-response {
+      background-color: #66d9c7;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    
+    .submit-response:hover {
+      background-color: #4db6ac;
+    }
+    
+    .submit-response:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    
+    .error-message {
+      color: #ff4d4f;
+      margin-top: 10px;
+      display: none;
+    }
+    
+    .success-message {
+      color: #52c41a;
+      margin-top: 10px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Survey Details</h2>
+    
+    <div id="surveyContent">
+      <!-- Survey content will be populated here -->
+    </div>
+    
+    <div class="response-form" id="responseForm" style="display: none;">
+      <h3>Submit Your Response</h3>
+      <textarea id="responseContent" placeholder="Enter your response here..."></textarea>
+      <button onclick="submitResponse()" class="submit-response" id="submitButton">Submit Response</button>
+      <p id="errorMessage" class="error-message"></p>
+      <p id="successMessage" class="success-message"></p>
+    </div>
+    
+    <div class="actions">
+      <button onclick="window.location.href='dashboard.html'">← Back to Dashboard</button>
+    </div>
+  </div>
+
+  <script>
+    let currentSurveyId = null;
+    
+    async function fetchSurveyDetails() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const surveyId = urlParams.get('id');
+        
+        if (!surveyId) {
+          throw new Error('No survey ID provided');
+        }
+        
+        currentSurveyId = surveyId;
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          window.location.href = 'login.html';
+          return;
+        }
+
+        const res = await fetch(`http://localhost:3000/api/surveys/${surveyId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (!res.ok) {
+          throw new Error('Failed to fetch survey details');
+        }
+
+        const data = await res.json();
+        const survey = data.data;
+        const isExpired = new Date(survey.expiryDate) < new Date();
+        
+        const surveyContent = document.getElementById('surveyContent');
+        surveyContent.innerHTML = `
+          <div class="survey-card">
+            <div class="survey-header">
+              <h4>${survey.area}</h4>
+              <span class="survey-status ${isExpired ? 'expired' : 'active'}">
+                ${isExpired ? 'Expired' : 'Active'}
+              </span>
+            </div>
+            <div class="survey-content">
+              <p class="survey-question">${survey.question}</p>
+              <div class="survey-details">
+                <div class="detail-section">
+                  <h5>Permitted Domains:</h5>
+                  <p>${survey.guidelines.permittedDomains}</p>
+                </div>
+                <div class="detail-section">
+                  <h5>Response Instructions:</h5>
+                  <p>${survey.guidelines.permittedResponses}</p>
+                </div>
+                <div class="detail-section">
+                  <h5>Summary Instructions:</h5>
+                  <p>${survey.guidelines.summaryInstructions}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // Show response form only if survey is active
+        const responseForm = document.getElementById('responseForm');
+        if (!isExpired) {
+          responseForm.style.display = 'block';
+        }
+        
+      } catch (error) {
+        console.error('Error fetching survey details:', error);
+        alert('Failed to load survey details. Please try again later.');
+      }
+    }
+    
+    async function submitResponse() {
+      const responseContent = document.getElementById('responseContent').value.trim();
+      const submitButton = document.getElementById('submitButton');
+      const errorMessage = document.getElementById('errorMessage');
+      const successMessage = document.getElementById('successMessage');
+      
+      if (!responseContent) {
+        errorMessage.textContent = 'Please enter your response';
+        errorMessage.style.display = 'block';
+        successMessage.style.display = 'none';
+        return;
+      }
+      
+      try {
+        submitButton.disabled = true;
+        errorMessage.style.display = 'none';
+        
+        const token = localStorage.getItem('token');
+        const res = await fetch(`http://localhost:3000/api/surveys/${currentSurveyId}/responses`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            content: responseContent
+          })
+        });
+        
+        if (!res.ok) {
+          throw new Error('Failed to submit response');
+        }
+        
+        successMessage.textContent = 'Response submitted successfully!';
+        successMessage.style.display = 'block';
+        document.getElementById('responseContent').value = '';
+        
+      } catch (error) {
+        console.error('Error submitting response:', error);
+        errorMessage.textContent = 'Failed to submit response. Please try again.';
+        errorMessage.style.display = 'block';
+        successMessage.style.display = 'none';
+      } finally {
+        submitButton.disabled = false;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchSurveyDetails);
+  </script>
+</body>
+</html> 

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Survey</title>
+    <link rel="stylesheet" href="create-survey.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Create New Survey</h1>
+        <form id="createSurveyForm">
+            <div class="form-group">
+                <label for="area">Survey Area:</label>
+                <input type="text" id="area" name="area" required 
+                       placeholder="e.g., improving the elementary school playground">
+            </div>
+
+            <div class="form-group">
+                <label for="question">Survey Question:</label>
+                <textarea id="question" name="question" required 
+                          placeholder="e.g., how would you like to improve the school playground?"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="permittedDomains">Permitted Domains:</label>
+                <textarea id="permittedDomains" name="permittedDomains" required 
+                          placeholder="e.g., what we want to keep, what we want to improve"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="permittedResponses">Response Guidelines:</label>
+                <textarea id="permittedResponses" name="permittedResponses" required 
+                          placeholder="e.g., use proper language, limit your response to two paragraphs"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="summaryInstructions">Summary Instructions:</label>
+                <textarea id="summaryInstructions" name="summaryInstructions" required 
+                          placeholder="e.g., make the summary readable by 6-8 graders, and introduce some humor"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="expiryDate">Expiry Date:</label>
+                <input type="datetime-local" id="expiryDate" name="expiryDate" required>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+
+            <div class="buttons">
+                <button type="submit" class="submit-btn">Create Survey</button>
+                <button type="button" class="cancel-btn" onclick="window.location.href='dashboard.html'">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('createSurveyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const formData = {
+                area: document.getElementById('area').value,
+                question: document.getElementById('question').value,
+                guidelines: {
+                    permittedDomains: document.getElementById('permittedDomains').value,
+                    permittedResponses: document.getElementById('permittedResponses').value,
+                    summaryInstructions: document.getElementById('summaryInstructions').value
+                },
+                expiryDate: new Date(document.getElementById('expiryDate').value).toISOString()
+            };
+
+            try {
+                const response = await fetch('http://localhost:3000/api/surveys', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to create survey');
+                }
+
+                const data = await response.json();
+                alert('Survey created successfully!');
+                window.location.href = 'dashboard.html';
+            } catch (error) {
+                console.error('Error creating survey:', error);
+                const errorMessage = document.getElementById('errorMessage');
+                errorMessage.textContent = 'Failed to create survey. Please try again.';
+                errorMessage.style.display = 'block';
+            }
+        });
+
+        // Set minimum date to current date
+        const expiryDateInput = document.getElementById('expiryDate');
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        expiryDateInput.min = now.toISOString().slice(0, 16);
+    </script>
+</body>
+</html> 

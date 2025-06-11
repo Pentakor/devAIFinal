@@ -18,8 +18,8 @@
 
     <div class="surveys-section">
       <h3>Open Surveys</h3>
-      <div class="survey-box">
-        <ul id="surveyList"></ul>
+      <div class="survey-grid" id="surveyList">
+        <!-- Surveys will be populated here -->
       </div>
     </div>
 
@@ -30,20 +30,110 @@
 
   <script>
     async function fetchSurveys() {
-      const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:3000/api/surveys', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok) {
-        const list = document.getElementById('surveyList');
-        data.data.forEach(survey => {
-          const item = document.createElement('li');
-          item.innerHTML = `<strong>${survey.area}</strong>: ${survey.question}`;
-          list.appendChild(item);
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          window.location.href = 'login.html';
+          return;
+        }
+
+        const res = await fetch('http://localhost:3000/api/surveys', {
+          headers: { Authorization: `Bearer ${token}` }
         });
-      } else {
-        alert(data.message || 'Failed to load surveys');
+        
+        if (!res.ok) {
+          throw new Error('Failed to fetch surveys');
+        }
+
+        const data = await res.json();
+        const surveyGrid = document.getElementById('surveyList');
+        
+        if (!data.data || data.data.length === 0) {
+          surveyGrid.innerHTML = '<p class="no-surveys">No surveys available at the moment.</p>';
+          return;
+        }
+
+        data.data.forEach(survey => {
+          const isExpired = new Date(survey.expiryDate) < new Date();
+          const surveyCard = document.createElement('div');
+          surveyCard.className = 'survey-card';
+          surveyCard.innerHTML = `
+            <div class="survey-header">
+              <h4>${survey.area}</h4>
+              <span class="survey-status ${isExpired ? 'expired' : 'active'}">
+                ${isExpired ? 'Expired' : 'Active'}
+              </span>
+            </div>
+            <div class="survey-content">
+              <p class="survey-question">${survey.question}</p>
+              <div class="survey-details">
+                <div class="detail-section">
+                  <h5>Permitted Domains:</h5>
+                  <p>${survey.guidelines.permittedDomains}</p>
+                </div>
+                <div class="detail-section">
+                  <h5>Response Instructions:</h5>
+                  <p>${survey.guidelines.permittedResponses}</p>
+                </div>
+                <div class="detail-section">
+                  <h5>Summary Instructions:</h5>
+                  <p>${survey.guidelines.summaryInstructions}</p>
+                </div>
+                ${survey.summary && survey.summary.isVisible ? `
+                <div class="detail-section summary-section">
+                  <h5>Summary:</h5>
+                  ${survey.summary.content.summary ? `
+                    <div class="summary-content">
+                      ${survey.summary.content.summary.themes ? `
+                        <div class="summary-themes">
+                          <h6>Themes:</h6>
+                          <ul>
+                            ${survey.summary.content.summary.themes.map(theme => `<li>${theme}</li>`).join('')}
+                          </ul>
+                        </div>
+                      ` : ''}
+                      ${survey.summary.content.summary.keyInsights ? `
+                        <div class="summary-insights">
+                          <h6>Key Insights:</h6>
+                          <ul>
+                            ${survey.summary.content.summary.keyInsights.map(insight => `<li>${insight}</li>`).join('')}
+                          </ul>
+                        </div>
+                      ` : ''}
+                      ${survey.summary.content.summary.recommendations ? `
+                        <div class="summary-recommendations">
+                          <h6>Recommendations:</h6>
+                          <ul>
+                            ${survey.summary.content.summary.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                          </ul>
+                        </div>
+                      ` : ''}
+                      ${survey.summary.content.summary.concerns ? `
+                        <div class="summary-concerns">
+                          <h6>Concerns:</h6>
+                          <ul>
+                            ${survey.summary.content.summary.concerns.map(concern => `<li>${concern}</li>`).join('')}
+                          </ul>
+                        </div>
+                      ` : ''}
+                    </div>
+                  ` : ''}
+                </div>
+                ` : ''}
+              </div>
+            </div>
+            <div class="survey-footer">
+              <span class="creator">Created by: ${survey.creator.username}</span>
+              <button onclick="window.location.href='survey.html?id=${survey._id}'" class="view-survey-btn">
+                View Survey
+              </button>
+            </div>
+          `;
+          surveyGrid.appendChild(surveyCard);
+        });
+      } catch (error) {
+        console.error('Error fetching surveys:', error);
+        alert('Failed to load surveys. Please try again later.');
       }
     }
 

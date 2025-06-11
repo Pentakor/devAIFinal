@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Search Surveys</title>
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <div class="container">
+    <h2>Search Surveys</h2>
+
+    <div class="search-section">
+      <div class="search-input-container">
+        <input type="text" id="searchInput" placeholder="Enter your search query..." class="search-input">
+        <button onclick="searchSurveys()" class="search-button">🔍 Search</button>
+      </div>
+    </div>
+
+    <div class="surveys-section">
+      <h3>Search Results</h3>
+      <div class="survey-grid" id="searchResults">
+        <!-- Search results will be populated here -->
+      </div>
+    </div>
+
+    <div class="actions">
+      <button onclick="window.location.href='dashboard.html'">← Back to Dashboard</button>
+    </div>
+  </div>
+
+  <script>
+    async function searchSurveys() {
+      const searchInput = document.getElementById('searchInput');
+      const query = searchInput.value.trim();
+      
+      if (!query) {
+        alert('Please enter a search query');
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          window.location.href = 'login.html';
+          return;
+        }
+
+        const res = await fetch(`http://localhost:3000/api/surveys/search?query=${encodeURIComponent(query)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (!res.ok) {
+          throw new Error('Failed to search surveys');
+        }
+
+        const data = await res.json();
+        const searchResults = document.getElementById('searchResults');
+        
+        if (!data.data || !data.data.results || data.data.results.length === 0) {
+          searchResults.innerHTML = '<p class="no-surveys">No surveys found matching your search criteria.</p>';
+          return;
+        }
+
+        searchResults.innerHTML = ''; // Clear previous results
+        
+        data.data.results.forEach(result => {
+          const survey = result.survey;
+          const isExpired = new Date(survey.expiryDate) < new Date();
+          const surveyCard = document.createElement('div');
+          surveyCard.className = 'survey-card';
+          surveyCard.innerHTML = `
+            <div class="survey-header">
+              <h4>${survey.area}</h4>
+              <span class="survey-status ${isExpired ? 'expired' : 'active'}">
+                ${isExpired ? 'Expired' : 'Active'}
+              </span>
+            </div>
+            <div class="survey-content">
+              <p class="survey-question">${survey.question}</p>
+              <div class="survey-details">
+                <div class="detail-section">
+                  <h5>Permitted Domains:</h5>
+                  <p>${survey.guidelines.permittedDomains}</p>
+                </div>
+                <div class="detail-section">
+                  <h5>Response Instructions:</h5>
+                  <p>${survey.guidelines.permittedResponses}</p>
+                </div>
+                <div class="detail-section">
+                  <h5>Summary Instructions:</h5>
+                  <p>${survey.guidelines.summaryInstructions}</p>
+                </div>
+                <div class="detail-section relevance-section">
+                  <h5>Search Relevance:</h5>
+                  <div class="relevance-info">
+                    <div class="relevance-score">
+                      <span class="score-label">Relevance Score:</span>
+                      <span class="score-value">${(result.relevanceScore * 100).toFixed(0)}%</span>
+                    </div>
+                    <div class="match-reason">
+                      <span class="reason-label">Match Reason:</span>
+                      <p>${result.matchReason}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="survey-footer">
+              <span class="creator">Created by: ${survey.creator.username}</span>
+              <button onclick="window.location.href='survey.html?id=${survey._id}'" class="view-survey-btn">
+                View Survey
+              </button>
+            </div>
+          `;
+          searchResults.appendChild(surveyCard);
+        });
+      } catch (error) {
+        console.error('Error searching surveys:', error);
+        alert('Failed to search surveys. Please try again later.');
+      }
+    }
+
+    // Allow search on Enter key press
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        searchSurveys();
+      }
+    });
+  </script>
+</body>
+</html> 
