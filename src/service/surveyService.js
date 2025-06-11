@@ -166,6 +166,18 @@ export const addResponse = async (surveyId, responseData, userId) => {
 
     const result = updatedSurvey.toObject();
     result.responses = responses;
+
+    // Parse the summary content if it exists and is visible
+    if (result.summary && result.summary.isVisible && result.summary.content) {
+        try {
+            result.summary.content = JSON.parse(result.summary.content);
+        } catch (error) {
+            console.error('Error parsing summary content:', error);
+        }
+    } else if (result.summary && !result.summary.isVisible) {
+        delete result.summary;
+    }
+
     return result;
 };
 
