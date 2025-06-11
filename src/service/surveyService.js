@@ -3,9 +3,23 @@ import { surveySchema, responseSchema } from '../validation/schemas.js';
 import { getPrompt } from '../utils/promptLoader.js';
 import Response from '../models/Response.js';
 import { ValidationError, NotFoundError, ConflictError, AuthorizationError } from '../utils/errors.js';
-import { generateAISummary, validateSurveyResponses, searchSurveys as aiSearchSurveys } from './aiService.js';
 import path from 'path';
 import { loadPrompts } from '../utils/promptLoader.js';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
+
+// Conditionally import the appropriate service
+const USE_MOCK_LLM = process.env.USE_MOCK_LLM === 'true';
+let llmService;
+if (USE_MOCK_LLM) {
+    const { generateSummary, validateResponses, searchSurveysByQuery } = await import('../../test/__mocks__/llmService.js');
+    llmService = { generateSummary, validateResponses, searchSurveysByQuery };
+} else {
+    const { generateSummary, validateResponses, searchSurveysByQuery } = await import('./llmService.js');
+    llmService = { generateSummary, validateResponses, searchSurveysByQuery };
+}
 
 export const createSurvey = async (surveyData, userId) => {
     const { error } = surveySchema.validate(surveyData);
@@ -199,8 +213,8 @@ export const searchSurveys = async (query) => {
         guidelines: survey.guidelines
     }));
 
-    // Use AI service to analyze the query and find relevant surveys
-    const searchResults = await aiSearchSurveys(query, surveyData);
+    // Use the appropriate service to analyze the query and find relevant surveys
+    const searchResults = await llmService.searchSurveysByQuery(query, surveyData);
     
     // Get full survey details for matching surveys
     const matchingSurveyIds = searchResults.matches.map(match => match.surveyid);
@@ -365,8 +379,8 @@ export const validateSurveyResponsesWithAI = async (survey) => {
 
         console.log('Prepared validation prompt');
 
-        // Use AI service to validate responses
-        const validationResults = await validateSurveyResponses(filledPrompt);
+        // Use the appropriate service to validate responses
+        const validationResults = await llmService.validateResponses(filledPrompt);
         console.log('Received validation results:', validationResults);
         
         // First, mark all responses as approved by default
@@ -458,8 +472,8 @@ export const generateSurveySummary = async (surveyId, userId, prompts) => {
         .replace('{guidelines}', JSON.stringify(surveyData.guidelines))
         .replace('{responses}', JSON.stringify(surveyData.responses));
 
-    // Generate summary using AI service
-    const summary = await generateAISummary(filledPrompt);
+    // Generate summary using the appropriate service
+    const summary = await llmService.generateSummary(filledPrompt);
 
     // Stringify the summary content before saving
     const summaryContent = JSON.stringify(summary);

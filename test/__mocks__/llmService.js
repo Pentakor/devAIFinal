@@ -6,22 +6,30 @@ const mockLLMService = {
         sentiment: "positive"
     }),
     
-    analyzeSentiment: jest.fn().mockResolvedValue({
-        sentiment: 'positive',
-        confidence: 0.85
+    validateResponses: jest.fn().mockResolvedValue({
+        violations: [
+            {
+                responseId: "mock-response-id",
+                explanation: "Mock violation explanation"
+            }
+        ]
     }),
     
-    generateSurveyQuestions: jest.fn().mockResolvedValue([
-        "What did you like most about Product Feedback?",
-        "How would you improve Product Feedback?",
-        "Would you recommend Product Feedback to others?"
-    ])
+    searchSurveysByQuery: jest.fn().mockResolvedValue({
+        matches: [
+            {
+                surveyid: "mock-survey-id",
+                relevanceScore: 0.95,
+                matchReason: "Mock match reason"
+            }
+        ]
+    })
 };
 
 // Named exports for individual functions
 export const generateSummary = mockLLMService.generateSummary;
-export const analyzeSentiment = mockLLMService.analyzeSentiment;
-export const generateSurveyQuestions = mockLLMService.generateSurveyQuestions;
+export const validateResponses = mockLLMService.validateResponses;
+export const searchSurveysByQuery = mockLLMService.searchSurveysByQuery;
 
 // Default export for the whole service
 export default mockLLMService;
