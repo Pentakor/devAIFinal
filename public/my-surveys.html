@@ -123,6 +123,36 @@
       border-radius: 4px;
       margin-top: 10px;
     }
+
+    .survey-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .survey-status-container {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 5px;
+    }
+
+    .survey-expiry {
+      font-size: 0.9em;
+      color: #666;
+    }
+
+    .close-btn {
+      background-color: #ff9800;
+      color: white;
+    }
+
+    .close-btn.closed {
+      background-color: #795548;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
   </style>
 </head>
 <body>
@@ -177,9 +207,12 @@
           surveyCard.innerHTML = `
             <div class="survey-header">
               <h4>${survey.area}</h4>
-              <span class="survey-status ${isExpired ? 'expired' : 'active'}">
-                ${isExpired ? 'Expired' : 'Active'}
-              </span>
+              <div class="survey-status-container">
+                <span class="survey-expiry">Expires: ${new Date(survey.expiryDate).toLocaleDateString()}</span>
+                <span class="survey-status ${survey.isClosed ? 'closed' : (isExpired ? 'expired' : 'active')}">
+                  ${survey.isClosed ? 'Closed' : (isExpired ? 'Expired' : 'Active')}
+                </span>
+              </div>
             </div>
             <div class="survey-content">
               <p class="survey-question">${survey.question}</p>
@@ -252,6 +285,13 @@
                         id="visibility-btn-${survey._id}">
                   ${survey.summary?.isVisible ? 'Hide Summary' : 'Show Summary'}
                 </button>
+                ${!survey.isClosed ? `
+                <button onclick="closeSurvey('${survey._id}')" 
+                        class="close-btn" 
+                        id="close-btn-${survey._id}">
+                  Close Survey
+                </button>
+                ` : ''}
                 <button onclick="deleteSurvey('${survey._id}')" class="delete-btn">
                   Delete
                 </button>
@@ -455,6 +495,35 @@
       } catch (error) {
         console.error('Error updating summary visibility:', error);
         alert('Failed to update summary visibility. Please try again later.');
+      }
+    }
+
+    async function closeSurvey(surveyId) {
+      if (!confirm('Are you sure you want to close this survey? This action cannot be undone.')) {
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        
+        const res = await fetch(`http://localhost:3000/api/surveys/${surveyId}/close`, {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to close survey');
+        }
+
+        // Refresh the survey list to show updated status
+        fetchMySurveys();
+
+      } catch (error) {
+        console.error('Error closing survey:', error);
+        alert('Failed to close survey. Please try again later.');
       }
     }
 

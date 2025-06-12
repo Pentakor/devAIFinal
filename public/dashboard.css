@@ -129,19 +129,23 @@ button:hover {
 
 .survey-status {
   padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.8em;
-  font-weight: 500;
+  border-radius: 4px;
+  font-size: 0.9em;
 }
 
 .survey-status.active {
-  background-color: #e3fcef;
-  color: #00a854;
+  background-color: #e8f5e9;
+  color: #2e7d32;
 }
 
 .survey-status.expired {
-  background-color: #fff1f0;
-  color: #f5222d;
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.survey-status.closed {
+  background-color: #eceff1;
+  color: #455a64;
 }
 
 .survey-content {
