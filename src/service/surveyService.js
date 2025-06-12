@@ -43,9 +43,13 @@ export const createSurvey = async (surveyData, userId) => {
     }
 };
 
-export const getAllSurveys = async (page = 1, limit = 10) => {
+export const getAllSurveys = async (page = 1, limit = 10, userId = null) => {
     const skip = (page - 1) * limit;
-    const surveys = await Survey.find()
+    
+    // Build query based on whether userId is provided
+    const query = userId ? { creator: userId } : {};
+    
+    const surveys = await Survey.find(query)
         .populate('creator', 'username')
         .sort('-createdAt')
         .skip(skip)

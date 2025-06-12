@@ -45,8 +45,9 @@ export const deleteSurvey = asyncHandler(async (req, res) => {
 export const listSurveys = asyncHandler(async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
+    const userId = req.query.user || null;
 
-    const surveys = await surveyService.getAllSurveys(page, limit);
+    const surveys = await surveyService.getAllSurveys(page, limit, userId);
     
     res.status(200).json({
         status: 'success',

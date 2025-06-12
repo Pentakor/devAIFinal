@@ -166,6 +166,13 @@
         successMessage.style.display = 'none';
         return;
       }
+
+      if (responseContent.length < 10) {
+        errorMessage.textContent = 'Response must be at least 10 characters long';
+        errorMessage.style.display = 'block';
+        successMessage.style.display = 'none';
+        return;
+      }
       
       try {
         submitButton.disabled = true;
