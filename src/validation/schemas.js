@@ -143,6 +143,10 @@ export const idParamSchema = Joi.object({
     id: idSchema
 });
 
+export const userIdParamSchema = Joi.object({
+    userId: idSchema
+});
+
 export const responseIdParamSchema = Joi.object({
     id: idSchema,
     responseId: idSchema

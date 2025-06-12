@@ -118,8 +118,8 @@
           <div class="survey-card">
             <div class="survey-header">
               <h4>${survey.area}</h4>
-              <span class="survey-status ${isExpired ? 'expired' : 'active'}">
-                ${isExpired ? 'Expired' : 'Active'}
+              <span class="survey-status ${survey.isClosed ? 'closed' : (isExpired ? 'expired' : 'active')}">
+                ${survey.isClosed ? 'Closed' : (isExpired ? 'Expired' : 'Active')}
               </span>
             </div>
             <div class="survey-content">
@@ -142,9 +142,9 @@
           </div>
         `;
         
-        // Show response form only if survey is active
+        // Show response form only if survey is active and not closed
         const responseForm = document.getElementById('responseForm');
-        if (!isExpired) {
+        if (!isExpired && !survey.isClosed) {
           responseForm.style.display = 'block';
         }
         

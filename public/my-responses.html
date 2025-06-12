@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Responses</title>
+  <link rel="stylesheet" href="dashboard.css" />
+  <style>
+    .response-card {
+      background-color: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .response-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .survey-title {
+      font-size: 1.2em;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .response-meta {
+      color: #666;
+      font-size: 0.9em;
+    }
+
+    .response-content {
+      margin: 15px 0;
+      line-height: 1.5;
+    }
+
+    .response-validation {
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 0.9em;
+      margin-top: 10px;
+      display: inline-block;
+    }
+
+    .validation-violation {
+      background-color: #ffebee;
+      color: #c62828;
+    }
+
+    .validation-approved {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .validation-pending {
+      background-color: #fff3e0;
+      color: #ef6c00;
+    }
+
+    .no-responses {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+      font-size: 1.1em;
+    }
+
+    .back-btn {
+      margin-bottom: 20px;
+      padding: 8px 16px;
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .back-btn:hover {
+      background-color: #1976D2;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+    }
+
+    .response-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 15px;
+      gap: 10px;
+    }
+
+    .change-response-btn {
+      padding: 8px 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+
+    .change-response-btn:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>My Responses</h2>
+    
+    <button class="back-btn" onclick="window.location.href='dashboard.html'">← Back to Dashboard</button>
+
+    <div id="responsesList">
+      <!-- Responses will be populated here -->
+    </div>
+  </div>
+
+  <script>
+    async function fetchSurveyDetails(surveyId, token) {
+      try {
+        const res = await fetch(`http://localhost:3000/api/surveys/${surveyId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (!res.ok) {
+          throw new Error('Failed to fetch survey details');
+        }
+
+        const data = await res.json();
+        return data.data;
+      } catch (error) {
+        console.error('Error fetching survey details:', error);
+        return null;
+      }
+    }
+
+    async function fetchMyResponses() {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          window.location.href = 'login.html';
+          return;
+        }
+
+        // Get user ID from token payload
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const userId = payload.id;
+
+        const responsesList = document.getElementById('responsesList');
+        responsesList.innerHTML = '<p class="loading">Loading responses...</p>';
+
+        const res = await fetch(`http://localhost:3000/api/surveys/users/responses/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (!res.ok) {
+          throw new Error('Failed to fetch responses');
+        }
+
+        const data = await res.json();
+        
+        // Clear loading message
+        responsesList.innerHTML = '';
+        
+        if (!data.data || data.data.length === 0) {
+          responsesList.innerHTML = '<p class="no-responses">You haven\'t submitted any responses yet.</p>';
+          return;
+        }
+
+        // Fetch survey details for each response
+        const responsesWithSurveys = await Promise.all(
+          data.data.map(async (response) => {
+            const surveyDetails = await fetchSurveyDetails(response.survey._id, token);
+            return {
+              ...response,
+              survey: {
+                ...response.survey,
+                ...surveyDetails
+              }
+            };
+          })
+        );
+
+        responsesWithSurveys.forEach(response => {
+          const responseCard = document.createElement('div');
+          responseCard.className = 'response-card';
+          responseCard.innerHTML = `
+            <div class="response-header">
+              <div class="survey-title">${response.survey.area || 'Survey'}</div>
+              <div class="response-meta">
+                Submitted: ${new Date(response.metadata.submissionTime).toLocaleString()}
+              </div>
+            </div>
+            <div class="response-content">
+              <p><strong>Question:</strong> ${response.survey.question || 'Question not available'}</p>
+              <p><strong>Your Response:</strong> ${response.content}</p>
+            </div>
+            <div class="response-validation ${response.validation === 'violation' ? 'validation-violation' : 
+              response.validation === 'approved' ? 'validation-approved' : 'validation-pending'}">
+              ${response.validation === 'violation' ? 
+                `Violation: ${response.violationExplanation}` : 
+                response.validation === 'approved' ? 
+                'Valid Response' : 
+                'Pending Review'}
+            </div>
+            ${!response.survey.isClosed ? `
+            <div class="response-actions">
+              <button onclick="window.location.href='survey.html?id=${response.survey._id}'" class="change-response-btn">
+                Change Response
+              </button>
+            </div>
+            ` : ''}
+          `;
+          responsesList.appendChild(responseCard);
+        });
+      } catch (error) {
+        console.error('Error fetching responses:', error);
+        alert('Failed to load responses. Please try again later.');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchMyResponses);
+  </script>
+</body>
+</html> 

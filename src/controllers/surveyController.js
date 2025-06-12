@@ -217,4 +217,23 @@ export const deleteBadResponses = asyncHandler(async (req, res) => {
             deletedCount: result.deletedCount
         }
     });
+});
+
+export const getUserResponses = asyncHandler(async (req, res) => {
+    const userId = req.params.userId;
+    
+    // Check if the requesting user is the same as the userId
+    if (req.user._id.toString() !== userId) {
+        throw new AuthenticationError('Not authorized to view these responses');
+    }
+
+    // Fetch responses for this user
+    const responses = await Response.find({ user: userId })
+        .populate('survey', 'title description')
+        .sort({ createdAt: -1 });
+
+    res.status(200).json({
+        status: 'success',
+        data: responses
+    });
 }); 
