@@ -2,6 +2,7 @@ Survey Information:
 - Area: {area}
 - Question: {question}
 - Guidelines: {guidelines}
+- Summary Instructions: {summaryInstructions}
 
 Survey Responses:
 {responses}
@@ -11,6 +12,7 @@ Please provide a summary that includes:
 2. Common viewpoints and unique perspectives
 3. Notable insights and recommendations
 4. Any potential areas of concern or improvement
+5. make sure to follow the provided summary Instructions
 
 Format your response as follows:
 {

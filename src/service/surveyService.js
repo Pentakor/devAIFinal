@@ -457,6 +457,7 @@ export const generateSurveySummary = async (surveyId, userId, prompts) => {
         area: survey.area,
         question: survey.question,
         guidelines: survey.guidelines,
+        summaryInstructions: survey.guidelines.summaryInstructions,
         responses: responses.map(r => ({
             content: r.content,
             user: r.user.username
@@ -474,6 +475,7 @@ export const generateSurveySummary = async (surveyId, userId, prompts) => {
         .replace('{area}', surveyData.area)
         .replace('{question}', surveyData.question)
         .replace('{guidelines}', JSON.stringify(surveyData.guidelines))
+        .replace('{summaryInstructions}', surveyData.summaryInstructions)
         .replace('{responses}', JSON.stringify(surveyData.responses));
 
     // Generate summary using the appropriate service
