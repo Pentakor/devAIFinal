@@ -1,21 +1,10 @@
 export default {
   testEnvironment: 'node',
-  globals: {
-    'ts-jest': {
-      useESM: true
-    }
-  },
   transform: {
-    '^.+\\.js$': ['babel-jest', { 
-      presets: [['@babel/preset-env', { 
-        targets: { node: 'current' },
-        modules: 'commonjs'
-      }]]
-    }]
+    '^.+\\.js$': 'babel-jest'
   },
-  transformIgnorePatterns: [
-    'node_modules/(?!(.*\\.mjs$))'
-  ],
+  transformIgnorePatterns: ['node_modules/(?!(.*\\.mjs$))'],
+  setupFiles: ['dotenv/config'],
   setupFilesAfterEnv: ['./test/setup.js'],
   testMatch: ['**/test/**/*.test.js'],
   verbose: true,
@@ -24,7 +13,6 @@ export default {
   resetMocks: true,
   restoreMocks: true,
   testTimeout: 30000,
-  setupFiles: ['dotenv/config'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1'
   }
