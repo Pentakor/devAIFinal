@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>My Responses</title>
-  <link rel="stylesheet" href="dashboard.css" />
+  <link rel="stylesheet" href="/assets/css/dashboard/dashboard.css" />
   <style>
     .response-card {
       background-color: white;
@@ -115,7 +115,7 @@
   <div class="container">
     <h2>My Responses</h2>
     
-    <button class="back-btn" onclick="window.location.href='dashboard.html'">← Back to Dashboard</button>
+    <button class="back-btn" onclick="window.location.href='/views/dashboard/dashboard.html'">← Back to Dashboard</button>
 
     <div id="responsesList">
       <!-- Responses will be populated here -->
@@ -145,7 +145,7 @@
       try {
         const token = localStorage.getItem('token');
         if (!token) {
-          window.location.href = 'login.html';
+          window.location.href = '/views/auth/login.html';
           return;
         }
 
@@ -212,7 +212,7 @@
             </div>
             ${!response.survey.isClosed ? `
             <div class="response-actions">
-              <button onclick="window.location.href='survey.html?id=${response.survey._id}'" class="change-response-btn">
+              <button class="change-response-btn" onclick="window.location.href='/views/survey/survey.html?id=${response.survey._id}'">
                 Change Response
               </button>
             </div>

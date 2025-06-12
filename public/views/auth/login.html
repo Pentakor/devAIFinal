@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Login</title>
-  <link rel="stylesheet" href="login.css" />
+  <link rel="stylesheet" href="/assets/css/auth/login.css" />
 </head>
 <body>
   <div class="container">
@@ -14,7 +14,7 @@
       <input type="password" id="password" placeholder="Password" required />
       <button type="submit">Login</button>
     </form>
-    <p>Don't have an account? <a href="register.html">Register here</a></p>
+    <p>Don't have an account? <a href="/views/auth/register.html">Register here</a></p>
   </div>
 
   <script>
@@ -38,7 +38,7 @@
         if (res.ok) {
           localStorage.setItem('token', data.data.token);
           alert('Login successful!');
-          window.location.href = 'dashboard.html'; 
+          window.location.href = '/views/dashboard/dashboard.html'; 
         } else {
           alert(data.message || 'Login failed');
         }

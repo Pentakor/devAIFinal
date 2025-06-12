@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Dashboard</title>
-  <link rel="stylesheet" href="dashboard.css" />
+  <link rel="stylesheet" href="/assets/css/dashboard/dashboard.css" />
 </head>
 <body>
   <div class="container">
     <h2>Welcome to the Survey Platform</h2>
 
     <div class="actions">
-      <button onclick="window.location.href='create-survey.html'">➕ Create New Survey</button>
-      <button onclick="window.location.href='search.html'">🔍 Search Surveys</button>
-      <button onclick="window.location.href='my-surveys.html'">📝 My Surveys</button>
-      <button onclick="window.location.href='my-responses.html'">🗂️ My Responses</button>
+      <button onclick="window.location.href='/views/dashboard/create-survey.html'">➕ Create New Survey</button>
+      <button onclick="window.location.href='/views/survey/search.html'">🔍 Search Surveys</button>
+      <button onclick="window.location.href='/views/dashboard/my-surveys.html'">📝 My Surveys</button>
+      <button onclick="window.location.href='/views/dashboard/my-responses.html'">🗂️ My Responses</button>
     </div>
 
     <div class="surveys-section">
@@ -34,7 +34,7 @@
       try {
         const token = localStorage.getItem('token');
         if (!token) {
-          window.location.href = 'login.html';
+          window.location.href = '/views/auth/login.html';
           return;
         }
 
@@ -125,7 +125,7 @@
             </div>
             <div class="survey-footer">
               <span class="creator">Created by: ${survey.creator.username}</span>
-              <button onclick="window.location.href='survey.html?id=${survey._id}'" class="view-survey-btn">
+              <button onclick="window.location.href='/views/survey/survey.html?id=${survey._id}'" class="view-survey-btn">
                 View Survey
               </button>
             </div>
@@ -140,7 +140,7 @@
 
     function logout() {
       localStorage.removeItem('token');
-      window.location.href = 'login.html';
+      window.location.href = '/views/auth/login.html';
     }
 
     document.addEventListener('DOMContentLoaded', fetchSurveys);

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Register</title>
-  <link rel="stylesheet" href="register.css" />
+  <link rel="stylesheet" href="/assets/css/auth/register.css" />
 </head>
 <body>
   <div class="container">
@@ -16,7 +16,7 @@
       <input type="text" id="registrationCode" placeholder="Registration Code" required />
       <button type="submit">Register</button>
     </form>
-    <p>Already have an account? <a href="login.html">Login here</a></p>
+    <p>Already have an account? <a href="/views/auth/login.html">Login here</a></p>
   </div>
 
   <script>
@@ -42,7 +42,7 @@
           const data = await res.json();
           if (res.ok) {
             alert('Registration successful!');
-            window.location.href = 'login.html';
+            window.location.href = '/views/auth/login.html';
           } else {
             alert(data.message || 'Registration failed');
           }

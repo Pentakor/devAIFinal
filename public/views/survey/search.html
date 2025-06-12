@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Search Surveys</title>
-  <link rel="stylesheet" href="dashboard.css" />
+  <link rel="stylesheet" href="/assets/css/dashboard/dashboard.css" />
 </head>
 <body>
   <div class="container">
@@ -25,7 +25,7 @@
     </div>
 
     <div class="actions">
-      <button onclick="window.location.href='dashboard.html'">← Back to Dashboard</button>
+      <button onclick="window.location.href='/views/dashboard/dashboard.html'">← Back to Dashboard</button>
     </div>
   </div>
 
@@ -42,7 +42,7 @@
       try {
         const token = localStorage.getItem('token');
         if (!token) {
-          window.location.href = 'login.html';
+          window.location.href = '/views/auth/login.html';
           return;
         }
 
@@ -108,7 +108,7 @@
             </div>
             <div class="survey-footer">
               <span class="creator">Created by: ${survey.creator.username}</span>
-              <button onclick="window.location.href='survey.html?id=${survey._id}'" class="view-survey-btn">
+              <button onclick="window.location.href='/views/survey/survey.html?id=${survey._id}'" class="view-survey-btn">
                 View Survey
               </button>
             </div>
