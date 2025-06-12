@@ -15,7 +15,7 @@
       align-items: center;
     }
     
-    .edit-btn, .delete-btn, .view-responses-btn, .summarize-btn, .visibility-btn, .validate-responses-btn, .close-btn {
+    .edit-btn, .delete-btn, .view-responses-btn, .summarize-btn, .visibility-btn, .validate-responses-btn, .close-btn, .change-expiry-btn {
       padding: 5px 10px;
       border: none;
       border-radius: 4px;
@@ -249,6 +249,83 @@
     .delete-all-bad-btn:hover {
       background-color: #d32f2f;
     }
+
+    /* Date picker modal styles */
+    .date-picker-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+    }
+
+    .date-picker-content {
+      position: relative;
+      background-color: #fff;
+      margin: 15% auto;
+      padding: 20px;
+      width: 90%;
+      max-width: 500px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .date-picker-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .date-picker-close {
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+      color: #666;
+    }
+
+    .date-picker-close:hover {
+      color: #000;
+    }
+
+    .date-picker-form {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .date-picker-form input[type="datetime-local"] {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+
+    .date-picker-form button {
+      padding: 10px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .date-picker-form button:hover {
+      background-color: #45a049;
+    }
+
+    .change-expiry-btn {
+      background-color: #ff9800;
+      color: white;
+    }
+
+    .change-expiry-btn:hover {
+      background-color: #f57c00;
+    }
   </style>
 </head>
 <body>
@@ -278,8 +355,23 @@
     </div>
   </div>
 
+  <!-- Date picker modal -->
+  <div id="datePickerModal" class="date-picker-modal">
+    <div class="date-picker-content">
+      <div class="date-picker-header">
+        <h3>Change Expiry Date</h3>
+        <span class="date-picker-close" onclick="closeDatePickerModal()">&times;</span>
+      </div>
+      <form class="date-picker-form" id="datePickerForm">
+        <input type="datetime-local" id="newExpiryDate" required>
+        <button type="submit">Update Expiry Date</button>
+      </form>
+    </div>
+  </div>
+
   <script>
     let currentSurveyId = null;
+    let currentDatePickerSurveyId = null;
 
     async function fetchMySurveys() {
       try {
@@ -400,6 +492,9 @@
                 <button onclick="validateResponses('${survey._id}')" class="validate-responses-btn">
                   Validate Responses
                 </button>
+                <button onclick="openDatePicker('${survey._id}')" class="change-expiry-btn">
+                  Change Expiry Date
+                </button>
                 ${!survey.isClosed ? `
                 <button onclick="closeSurvey('${survey._id}')" 
                         class="close-btn" 
@@ -428,7 +523,7 @@
       const modal = document.getElementById('responsesModal');
       const modalContent = document.getElementById('modalResponsesContent');
       currentSurveyId = surveyId;
-      
+
       try {
         const token = localStorage.getItem('token');
         const res = await fetch(`http://localhost:3000/api/surveys/${surveyId}/responses`, {
@@ -735,6 +830,66 @@
         alert('Failed to delete bad responses. Please try again later.');
       }
     }
+
+    function openDatePicker(surveyId) {
+      currentDatePickerSurveyId = surveyId;
+      const modal = document.getElementById('datePickerModal');
+      const dateInput = document.getElementById('newExpiryDate');
+      
+      // Set minimum date to current date
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      dateInput.min = now.toISOString().slice(0, 16);
+      
+      modal.style.display = 'block';
+    }
+
+    function closeDatePickerModal() {
+      const modal = document.getElementById('datePickerModal');
+      modal.style.display = 'none';
+      currentDatePickerSurveyId = null;
+    }
+
+    // Close date picker modal when clicking outside
+    window.onclick = function(event) {
+      const modal = document.getElementById('datePickerModal');
+      if (event.target === modal) {
+        closeDatePickerModal();
+      }
+    }
+
+    document.getElementById('datePickerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      if (!currentDatePickerSurveyId) return;
+
+      try {
+        const token = localStorage.getItem('token');
+        const newDate = document.getElementById('newExpiryDate').value;
+        
+        const res = await fetch(`http://localhost:3000/api/surveys/${currentDatePickerSurveyId}/expiry`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            expiryDate: new Date(newDate).toISOString()
+          })
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to update expiry date');
+        }
+
+        closeDatePickerModal();
+        fetchMySurveys(); // Refresh the survey list
+        alert('Expiry date updated successfully');
+      } catch (error) {
+        console.error('Error updating expiry date:', error);
+        alert('Failed to update expiry date. Please try again later.');
+      }
+    });
 
     document.addEventListener('DOMContentLoaded', fetchMySurveys);
   </script>
