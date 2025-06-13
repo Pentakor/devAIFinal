@@ -1,11 +1,9 @@
 export default {
   testEnvironment: 'node',
-  transform: {
-    '^.+\\.js$': 'babel-jest'
-  },
+  transform: {},
   transformIgnorePatterns: ['node_modules/(?!(.*\\.mjs$))'],
-  setupFiles: ['dotenv/config'],
-  setupFilesAfterEnv: ['./test/setup.js'],
+  setupFiles: ['./test/setup.js'],
+  setupFilesAfterEnv: [],
   testMatch: ['**/test/**/*.test.js'],
   verbose: true,
   forceExit: true,
@@ -16,4 +14,4 @@ export default {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1'
   }
-};
+}; 

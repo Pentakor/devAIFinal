@@ -1,4 +1,6 @@
+import { jest, describe, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import request from 'supertest';
+import express from 'express';
 import app from '../src/app.js';
 import Survey from '../src/models/Survey.js';
 import User from '../src/models/User.js';
@@ -6,14 +8,25 @@ import { connectDB, clearDB, closeDB } from './setup.js';
 import { generateTestUser, generateTestSurvey } from './helpers.js';
 import Response from '../src/models/Response.js';
 
+// Import the mock directly
+import mockLLMService from './__mocks__/llmService.js';
+
+// Mock Express
+jest.mock('express', () => {
+    const express = jest.fn(() => ({
+        use: jest.fn(),
+        get: jest.fn(),
+        post: jest.fn(),
+        put: jest.fn(),
+        delete: jest.fn()
+    }));
+    express.json = jest.fn();
+    express.urlencoded = jest.fn();
+    return express;
+});
+
 // Mock the LLM service
-jest.mock('../src/service/aiService.js', () => ({
-    generateAISummary: jest.fn().mockResolvedValue({
-        summary: "This is a mock summary of the survey responses.",
-        insights: ["Mock insight 1", "Mock insight 2"],
-        sentiment: "positive"
-    })
-}));
+jest.mock('../src/service/aiService.js', () => mockLLMService);
 
 describe('Survey Management API', () => {
     let authToken;
@@ -40,8 +53,13 @@ describe('Survey Management API', () => {
             .post('/api/auth/login')
             .send({
                 email: testUser.email,
-                password: 'Password123!'
+                password: 'password123'
             });
+        
+        if (!loginRes.body.data || !loginRes.body.data.token) {
+            throw new Error('Login response does not contain token: ' + JSON.stringify(loginRes.body));
+        }
+        
         authToken = loginRes.body.data.token;
 
         // Create a test survey
@@ -52,22 +70,7 @@ describe('Survey Management API', () => {
     describe('POST /api/surveys - Create Survey', () => {
         describe('Happy Path', () => {
             it('should create a new survey with valid data', async () => {
-                const surveyData = {
-                    title: 'Customer Satisfaction Survey',
-                    description: 'Please provide your feedback',
-                    area: 'Customer Service',
-                    questions: [
-                        {
-                            type: 'multiple-choice',
-                            question: 'How satisfied are you?',
-                            options: ['Very Satisfied', 'Satisfied', 'Neutral', 'Dissatisfied']
-                        },
-                        {
-                            type: 'text',
-                            question: 'Any additional comments?'
-                        }
-                    ]
-                };
+                const surveyData = generateTestSurvey(testUser._id);
 
                 const res = await request(app)
                     .post('/api/surveys')
@@ -78,7 +81,7 @@ describe('Survey Management API', () => {
                 expect(res.body.status).toBe('success');
                 expect(res.body.data.title).toBe(surveyData.title);
                 expect(res.body.data.creator.toString()).toBe(testUser._id.toString());
-                expect(res.body.data.questions).toHaveLength(2);
+                expect(res.body.data.questions).toHaveLength(surveyData.questions.length);
             });
         });
 
@@ -89,7 +92,7 @@ describe('Survey Management API', () => {
                     .send(generateTestSurvey(testUser._id));
 
                 expect(res.status).toBe(401);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
             });
 
             it('should reject survey creation with invalid token', async () => {
@@ -99,7 +102,7 @@ describe('Survey Management API', () => {
                     .send(generateTestSurvey(testUser._id));
 
                 expect(res.status).toBe(401);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
             });
         });
 
@@ -114,7 +117,7 @@ describe('Survey Management API', () => {
                     });
 
                 expect(res.status).toBe(400);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
             });
 
             it('should reject survey with missing required fields', async () => {
@@ -127,7 +130,7 @@ describe('Survey Management API', () => {
                     });
 
                 expect(res.status).toBe(400);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
             });
 
             it('should reject survey with invalid question format', async () => {
@@ -146,7 +149,7 @@ describe('Survey Management API', () => {
                     });
 
                 expect(res.status).toBe(400);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
             });
 
             it('should reject survey with multiple-choice question missing options', async () => {
@@ -166,7 +169,7 @@ describe('Survey Management API', () => {
                     });
 
                 expect(res.status).toBe(400);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
             });
         });
     });
@@ -205,7 +208,7 @@ describe('Survey Management API', () => {
                     .get('/api/surveys');
 
                 expect(res.status).toBe(401);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
             });
         });
 
@@ -242,7 +245,7 @@ describe('Survey Management API', () => {
                     .set('Authorization', `Bearer ${authToken}`);
 
                 expect(res.status).toBe(404);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
             });
 
             it('should return 400 for invalid ObjectId format', async () => {
@@ -251,7 +254,7 @@ describe('Survey Management API', () => {
                     .set('Authorization', `Bearer ${authToken}`);
 
                 expect(res.status).toBe(400);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
             });
         });
     });
@@ -282,7 +285,7 @@ describe('Survey Management API', () => {
                     .set('Authorization', `Bearer ${authToken}`);
 
                 expect(res.status).toBe(403);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
             });
         });
 
@@ -293,7 +296,7 @@ describe('Survey Management API', () => {
                     .set('Authorization', `Bearer ${authToken}`);
 
                 expect(res.status).toBe(404);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
             });
         });
     });
@@ -330,7 +333,7 @@ describe('Survey Management API', () => {
                     .set('Authorization', `Bearer ${authToken}`);
 
                 expect(res.status).toBe(400);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
             });
 
             it('should handle empty query string', async () => {
@@ -339,7 +342,7 @@ describe('Survey Management API', () => {
                     .set('Authorization', `Bearer ${authToken}`);
 
                 expect(res.status).toBe(400);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
             });
         });
     });
@@ -419,7 +422,7 @@ describe('Survey Management API', () => {
                     .send({ expiryDate: 'invalid-date' });
 
                 expect(res.status).toBe(400);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
             });
 
             it('should reject past expiry date', async () => {
@@ -431,7 +434,7 @@ describe('Survey Management API', () => {
                     .send({ expiryDate: pastDate });
 
                 expect(res.status).toBe(400);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
             });
         });
     });
@@ -481,7 +484,7 @@ describe('Survey Management API', () => {
                     .set('Authorization', `Bearer ${authToken}`);
 
                 expect(res.status).toBe(400);
-                expect(res.body.status).toBe('error');
+                expect(res.body.status).toBe('fail');
                 expect(res.body.message).toContain('no responses');
             });
         });

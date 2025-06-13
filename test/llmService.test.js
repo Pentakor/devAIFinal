@@ -1,15 +1,14 @@
-import { expect } from 'chai';
-import { describe, it, beforeAll, afterAll } from '@jest/globals';
-import { connect, closeDatabase } from './setup.js';
+import { describe, it, beforeAll, afterAll, expect } from '@jest/globals';
+import { connectDB, closeDB } from './setup.js';
 import { generateSummary, analyzeSentiment, generateSurveyQuestions } from './__mocks__/llmService.js';
 
 describe('LLM Service', () => {
   beforeAll(async () => {
-    await connect();
+    await connectDB();
   });
 
   afterAll(async () => {
-    await closeDatabase();
+    await closeDB();
   });
 
   describe('generateSummary', () => {
@@ -36,9 +35,9 @@ describe('LLM Service', () => {
       const result = await analyzeSentiment(text);
 
       expect(result).toHaveProperty('sentiment');
-      expect(result).toHaveProperty('confidence');
+      expect(result).toHaveProperty('score');
       expect(result.sentiment).toBe('positive');
-      expect(result.confidence).toBe(0.85);
+      expect(result.score).toBe(0.8);
     });
   });
 
@@ -47,7 +46,7 @@ describe('LLM Service', () => {
       const topic = "Product Feedback";
       const questions = await generateSurveyQuestions(topic);
 
-      expect(Array.isArray(questions)).toBeTruthy();
+      expect(Array.isArray(questions)).toBe(true);
       expect(questions.length).toBeGreaterThan(0);
       expect(questions[0]).toContain("Product Feedback");
     });

@@ -25,23 +25,23 @@ export const generateTestSurvey = (creatorId) => ({
   title: faker.lorem.words(3),
   description: faker.lorem.paragraph(),
   area: faker.lorem.words(2),
-  question: 'how would you like to improve the school playground?',
+  question: faker.lorem.sentence(),
   guidelines: {
-    permittedDomains: 'what we want to keep, what we want to improve',
-    permittedResponses: 'Use proper language. Limit your response to two paragraphs.',
-    summaryInstructions: 'Make the summary readable by 6-8 graders, and introduce some humor.'
+    permittedDomains: faker.lorem.words(5),
+    permittedResponses: faker.lorem.sentence(),
+    summaryInstructions: faker.lorem.sentence()
   },
   expiryDate: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000), // 20 days from now
   isClosed: false,
   questions: [
     {
       type: 'multiple-choice',
-      question: 'What is your favorite color?',
+      question: faker.lorem.sentence(),
       options: ['Red', 'Blue', 'Green']
     },
     {
       type: 'text',
-      question: 'Why do you like this color?'
+      question: faker.lorem.sentence()
     }
   ]
 });
