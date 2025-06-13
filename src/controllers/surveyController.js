@@ -87,15 +87,21 @@ export const closeSurvey = asyncHandler(async (req, res) => {
 });
 
 export const getSurveyExpiry = asyncHandler(async (req, res) => {
-    const survey = await surveyService.getSurveyById(req.params.id);
-    if (!survey) {
+    const surveyObj = await surveyService.getSurveyById(req.params.id);
+    if (!surveyObj) {
         throw new NotFoundError('Survey not found');
     }
+
+    const expiryDate = surveyObj.expiryDate;
+    const isExpired = expiryDate
+        ? (new Date() > new Date(expiryDate))
+        : false;
+
     res.status(200).json({
         status: 'success',
         data: {
-            expiryDate: survey.expiryDate,
-            isExpired: survey.isExpired()
+            expiryDate,
+            isExpired
         }
     });
 });
@@ -166,11 +172,10 @@ export const toggleSummary = asyncHandler(async (req, res) => {
 export const submitResponse = asyncHandler(async (req, res) => {
     const survey = await surveyService.addResponse(req.params.id, req.body, req.user._id);
     res.status(201).json({
-      status: 'success',
-      data: survey
+        status: 'success',
+        data: survey
     });
-  });
-  
+});
 
 export const updateResponse = asyncHandler(async (req, res) => {
     const response = await surveyService.updateSurveyResponse(
@@ -236,4 +241,4 @@ export const getUserResponses = asyncHandler(async (req, res) => {
         status: 'success',
         data: responses
     });
-}); 
+});

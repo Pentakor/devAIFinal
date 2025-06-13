@@ -26,7 +26,7 @@ jest.mock('express', () => {
 });
 
 // Mock the LLM service
-jest.mock('../src/service/aiService.js', () => mockLLMService);
+jest.mock('../src/service/llmService', () => mockLLMService);
 
 describe('Survey Management API', () => {
     let authToken;
