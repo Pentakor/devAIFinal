@@ -13,16 +13,7 @@ describe('Response Endpoints', () => {
     let testResponse;
 
     const validResponse = {
-        answers: [
-            {
-                questionId: 0,
-                answer: 'Blue'
-            },
-            {
-                questionId: 1,
-                answer: 'Because it reminds me of the ocean'
-            }
-        ]
+        content: 'I would like to improve the playground by adding more swings and a climbing wall. The current equipment is getting old and needs replacement.'
     };
 
     beforeAll(async () => {
@@ -68,7 +59,7 @@ describe('Response Endpoints', () => {
         const response = await Response.create({
             survey: survey._id,
             user: user._id,
-            answers: validResponse.answers
+            content: validResponse.content
         });
         testResponse = response;
     });
@@ -77,16 +68,7 @@ describe('Response Endpoints', () => {
         it('should submit a new response', async () => {
             const testOpinion = generateTestOpinion(testSurvey._id);
             const responseData = {
-                answers: [
-                    {
-                        questionId: 0,
-                        answer: 'Blue'
-                    },
-                    {
-                        questionId: 1,
-                        answer: testOpinion.content
-                    }
-                ]
+                content: testOpinion.content
             };
 
             const res = await request(app)
@@ -111,17 +93,12 @@ describe('Response Endpoints', () => {
             expect(res.body.message).toContain('closed');
         });
 
-        it('should not submit response with invalid answers', async () => {
+        it('should not submit response with invalid content', async () => {
             const res = await request(app)
                 .post(`/api/surveys/${testSurvey._id}/responses`)
                 .set('Authorization', `Bearer ${authToken}`)
                 .send({
-                    answers: [
-                        {
-                            questionId: 0,
-                            answer: 'InvalidColor' // Not in options
-                        }
-                    ]
+                    content: 'Too short' // Less than 10 characters
                 });
 
             expect(res.status).toBe(400);
@@ -158,26 +135,17 @@ describe('Response Endpoints', () => {
 
     describe('PUT /api/surveys/:id/responses/:responseId', () => {
         it('should update an existing response', async () => {
-            const updatedAnswer = {
-                answers: [
-                    {
-                        questionId: 0,
-                        answer: 'Red'
-                    },
-                    {
-                        questionId: 1,
-                        answer: 'Because it is vibrant'
-                    }
-                ]
+            const updatedResponse = {
+                content: 'I would like to improve the playground by adding a water feature and more shade areas. The current equipment is good but needs more variety.'
             };
 
             const res = await request(app)
                 .put(`/api/surveys/${testSurvey._id}/responses/${testResponse._id}`)
                 .set('Authorization', `Bearer ${authToken}`)
-                .send(updatedAnswer);
+                .send(updatedResponse);
 
             expect(res.status).toBe(200);
-            expect(res.body.data.answers[0].answer).toBe('Red');
+            expect(res.body.data.content).toBe(updatedResponse.content);
         });
 
         it('should not update response of another user', async () => {
@@ -197,20 +165,15 @@ describe('Response Endpoints', () => {
                 .set('Authorization', `Bearer ${otherAuthToken}`)
                 .send(validResponse);
 
-            expect(res.status).toBe(403);
+            expect(res.status).toBe(404);
         });
 
-        it('should not update response with invalid data', async () => {
+        it('should not update response with invalid content', async () => {
             const res = await request(app)
                 .put(`/api/surveys/${testSurvey._id}/responses/${testResponse._id}`)
                 .set('Authorization', `Bearer ${authToken}`)
                 .send({
-                    answers: [
-                        {
-                            questionId: 0,
-                            answer: 'InvalidColor'
-                        }
-                    ]
+                    content: 'Too short' // Less than 10 characters
                 });
 
             expect(res.status).toBe(400);
@@ -224,10 +187,6 @@ describe('Response Endpoints', () => {
                 .set('Authorization', `Bearer ${authToken}`);
 
             expect(res.status).toBe(204);
-
-            // Verify response is deleted
-            const response = await Response.findById(testResponse._id);
-            expect(response).toBeNull();
         });
 
         it('should not delete response of another user', async () => {

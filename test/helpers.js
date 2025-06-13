@@ -27,7 +27,7 @@ export const generateTestSurvey = (creatorId) => ({
   area: faker.lorem.words(2),
   question: 'how would you like to improve the school playground?',
   guidelines: {
-    permittedDomains: ['what we want to keep', 'what we want to improve'],
+    permittedDomains: 'what we want to keep, what we want to improve',
     permittedResponses: 'Use proper language. Limit your response to two paragraphs.',
     summaryInstructions: 'Make the summary readable by 6-8 graders, and introduce some humor.'
   },
