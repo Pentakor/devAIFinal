@@ -109,11 +109,11 @@ export const getSurveyById = async (surveyId) => {
 export const deleteSurvey = async (surveyId, userId) => {
     const survey = await Survey.findById(surveyId);
     if (!survey) {
-        throw new Error('Survey not found');
+        throw new NotFoundError('Survey not found');
     }
 
     if (!survey.creator.equals(userId)) {
-        throw new Error('Not authorized to delete this survey');
+        throw new AuthorizationError('Not authorized to delete this survey');
     }
 
     await Response.deleteMany({ survey: surveyId });

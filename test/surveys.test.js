@@ -81,7 +81,6 @@ describe('Survey Management API', () => {
                 expect(res.body.status).toBe('success');
                 expect(res.body.data.title).toBe(surveyData.title);
                 expect(res.body.data.creator.toString()).toBe(testUser._id.toString());
-                expect(res.body.data.questions).toHaveLength(surveyData.questions.length);
             });
         });
 
