@@ -143,19 +143,28 @@ export const validateResponses = asyncHandler(async (req, res) => {
 });
 
 export const generateSummary = asyncHandler(async (req, res) => {
-    // Load prompts
-    const prompts = await loadPrompts(promptsDir);
-    
-    const survey = await surveyService.generateSurveySummary(req.params.id, req.user._id, prompts);
+    const survey = await Survey.findById(req.params.id).populate('responses');
     if (!survey) {
-        throw new NotFoundError('Survey not found');
+      throw new NotFoundError('Survey not found');
     }
-    
+  
+    if (!survey.responses || survey.responses.length === 0) {
+      throw new ValidationError('no responses');
+    }
+  
+    const prompts = await loadPrompts(promptsDir);
+  
+    const summary = await surveyService.generateSurveySummary(
+      req.params.id,
+      req.user._id,
+      prompts
+    );
+  
     res.status(200).json({
-        status: 'success',
-        data: survey
+      status: 'success',
+      data: { summary }
     });
-});
+  });
 
 export const toggleSummary = asyncHandler(async (req, res) => {
     const survey = await surveyService.toggleSummaryVisibility(req.params.id, req.user._id, req.body.isSummaryVisible);
