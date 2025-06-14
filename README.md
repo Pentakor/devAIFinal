@@ -32,4 +32,4 @@ MAX_SURVEY_LENGTH=10
 
 3. Run the following command:
 
-blablabla
+npm test
