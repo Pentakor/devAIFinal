@@ -21,7 +21,7 @@ We also integrated AI into our project via the OpenAI Completions API.
 
 
 ## Lessons Learned and Challenges Faced
-The main challenge we faced was time management. The project was broad in scope, and most team members had very limited availability. One team member was on intensive reserve military duty (miluim), and another contributed almost nothing to the project, what left us with a three members team thought most of the time. Later on, during the Iranian attack on the night of 14th of June, Sapir's house was damaged, which led to further delay.
+The main challenge we faced was time management. The project was broad in scope, and most team members had very limited availability. One team member was on intensive reserve military duty (miluim), what left us with a three members team thought most of the time. Later on, during the Iranian attack on the night of 14th of June, Sapir's house was damaged, which led to further delay.
 
 Another major challenge was setting up JEST. We encountered significant issues with this tool due to the ES6 module system.
 
