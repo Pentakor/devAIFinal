@@ -64,6 +64,11 @@ const userSchema = new mongoose.Schema({
     passwordResetExpires: {
         type: Date,
         select: false
+    },
+    role: {
+        type: String,
+        enum: ['user', 'admin'],
+        default: 'user'
     }
 }, {
     timestamps: true
@@ -75,7 +80,7 @@ userSchema.index({ isActive: 1 });
 // Method to compare password
 userSchema.methods.comparePassword = async function(candidatePassword) {
     if (!candidatePassword) {
-        throw new Error('Password is required');
+        return false; // Or throw an error if preferred
     }
     return bcrypt.compare(candidatePassword, this.passwordHash);
 };
@@ -103,10 +108,8 @@ userSchema.statics.hashPassword = async function(password) {
     if (!password) {
         throw new Error('Password is required');
     }
-    if (password.length < 6) {
-        throw new Error('Password must be at least 6 characters long');
-    }
-    return bcrypt.hash(password, 10);
+    const salt = await bcrypt.genSalt(10);
+    return bcrypt.hash(password, salt);
 };
 
 // Static method to find by email

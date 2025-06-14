@@ -1,9 +1,12 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "Survey API",
+    "title": "Survey Server API",
+    "description": "API for managing surveys and collecting responses",
     "version": "1.0.0",
-    "description": "API for managing surveys and responses"
+    "contact": {
+      "name": "API Support"
+    }
   },
   "servers": [
     {
@@ -16,181 +19,54 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "JWT token with role-based authorization. Required roles: admin, creator. Some endpoints require specific roles. The creator role is required for survey creation and management."
+        "bearerFormat": "JWT"
       }
     },
     "schemas": {
-      "Error": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": ["fail", "error"]
-          },
-          "errorCode": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "errors": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "field": {
-                  "type": "string"
-                },
-                "message": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      },
       "Survey": {
         "type": "object",
         "required": ["area", "question", "guidelines", "expiryDate"],
         "properties": {
           "area": {
             "type": "string",
+            "description": "The area or topic of the survey",
             "minLength": 3,
-            "maxLength": 100,
-            "pattern": "^[a-zA-Z0-9\\s-_]+$"
+            "maxLength": 100
           },
           "question": {
             "type": "string",
+            "description": "The main question of the survey",
             "minLength": 10,
-            "maxLength": 1000,
-            "pattern": "^.*\\?$",
-            "description": "Question must end with a question mark"
+            "maxLength": 1000
           },
           "guidelines": {
             "type": "object",
             "required": ["permittedDomains", "permittedResponses", "summaryInstructions"],
             "properties": {
               "permittedDomains": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "pattern": "^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
-                },
-                "minItems": 1
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 500,
+                "description": "Description of the survey's context and scope"
               },
               "permittedResponses": {
                 "type": "string",
                 "minLength": 10,
-                "maxLength": 500
+                "maxLength": 500,
+                "description": "Instructions for permitted response types"
               },
               "summaryInstructions": {
                 "type": "string",
                 "minLength": 10,
-                "maxLength": 500
+                "maxLength": 500,
+                "description": "Instructions for summarizing the survey"
               }
             }
           },
           "expiryDate": {
             "type": "string",
-            "format": "date-time"
-          },
-          "status": {
-            "type": "string",
-            "enum": ["active", "closed", "expired"]
-          },
-          "summary": {
-            "type": "object",
-            "properties": {
-              "content": {
-                "type": "object",
-                "properties": {
-                  "themes": {
-                    "type": "array",
-                    "items": { "type": "string" }
-                  },
-                  "keyInsights": {
-                    "type": "array",
-                    "items": { "type": "string" }
-                  },
-                  "recommendations": {
-                    "type": "array",
-                    "items": { "type": "string" }
-                  },
-                  "concerns": {
-                    "type": "array",
-                    "items": { "type": "string" }
-                  }
-                }
-              },
-              "isVisible": {
-                "type": "boolean"
-              },
-              "lastUpdated": {
-                "type": "string",
-                "format": "date-time"
-              }
-            }
-          }
-        }
-      },
-      "SurveyResponse": {
-        "type": "object",
-        "required": ["content"],
-        "properties": {
-          "content": {
-            "type": "string",
-            "minLength": 10,
-            "maxLength": 2000
-          },
-          "status": {
-            "type": "string",
-            "enum": ["pending", "approved", "rejected"]
-          },
-          "validationNotes": {
-            "type": "string",
-            "maxLength": 500
-          },
-          "metadata": {
-            "type": "object",
-            "properties": {
-              "ipAddress": {
-                "type": "string"
-              },
-              "userAgent": {
-                "type": "string"
-              },
-              "submissionTime": {
-                "type": "string",
-                "format": "date-time"
-              }
-            }
-          }
-        }
-      },
-      "Pagination": {
-        "type": "object",
-        "properties": {
-          "page": {
-            "type": "integer",
-            "minimum": 1,
-            "default": 1
-          },
-          "limit": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 100,
-            "default": 10
-          },
-          "sort": {
-            "type": "string",
-            "enum": ["createdAt", "updatedAt", "expiryDate"],
-            "default": "createdAt"
-          },
-          "order": {
-            "type": "string",
-            "enum": ["asc", "desc"],
-            "default": "desc"
+            "format": "date-time",
+            "description": "Survey expiry date in ISO 8601 format (YYYY-MM-DDTHH:mm:ss.sssZ). Must be between now and 1 year from now. Example: 2025-03-19T08:13:52.422Z"
           }
         }
       },
@@ -198,25 +74,30 @@
         "type": "object",
         "required": ["content"],
         "properties": {
+          "responseId": {
+            "type": "string",
+            "description": "Unique identifier for the response",
+            "pattern": "^[0-9a-fA-F]{24}$"
+          },
           "content": {
             "type": "string",
+            "description": "The response content",
             "minLength": 10,
             "maxLength": 2000
           }
         }
       },
-      "ValidationResult": {
+      "Error": {
         "type": "object",
         "properties": {
-          "surveyId": {
+          "status": {
             "type": "string",
-            "pattern": "^[0-9a-fA-F]{24}$"
+            "enum": ["error"]
           },
-          "responseId": {
-            "type": "string",
-            "pattern": "^[0-9a-fA-F]{24}$"
+          "errorCode": {
+            "type": "string"
           },
-          "reason": {
+          "message": {
             "type": "string"
           }
         }
@@ -229,80 +110,39 @@
     }
   ],
   "paths": {
-    "/health": {
-      "get": {
-        "tags": ["System"],
-        "summary": "Health check endpoint",
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "System is healthy",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "string",
-                      "enum": ["ok"]
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api-docs": {
-      "get": {
-        "tags": ["Documentation"],
-        "summary": "Swagger UI documentation",
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "Swagger UI interface"
-          }
-        }
-      }
-    },
     "/api/auth/register": {
       "post": {
         "tags": ["Authentication"],
         "summary": "Register a new user",
-        "security": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["username", "email", "password", "registrationCode"],
+                "required": ["username", "password", "email", "registrationCode"],
                 "properties": {
                   "username": {
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 30,
-                    "pattern": "^[a-zA-Z0-9_-]+$",
-                    "description": "Username can only contain letters, numbers, underscores, and hyphens"
-                  },
-                  "email": {
-                    "type": "string",
-                    "format": "email",
-                    "description": "Must be a valid email address"
+                    "pattern": "^[a-zA-Z0-9_-]+$"
                   },
                   "password": {
                     "type": "string",
+                    "format": "password",
                     "minLength": 6,
-                    "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{6,}$",
-                    "description": "Must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+                    "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{6,}$"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
                   },
                   "registrationCode": {
                     "type": "string",
                     "minLength": 6,
                     "maxLength": 6,
-                    "pattern": "^[A-Z0-9]+$",
-                    "description": "Must be 6 characters long and contain only uppercase letters and numbers"
+                    "pattern": "^[A-Z0-9]+$"
                   }
                 }
               }
@@ -330,7 +170,6 @@
       "post": {
         "tags": ["Authentication"],
         "summary": "Login user",
-        "security": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -344,7 +183,8 @@
                     "format": "email"
                   },
                   "password": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "password"
                   }
                 }
               }
@@ -384,11 +224,6 @@
       "post": {
         "tags": ["Surveys"],
         "summary": "Create a new survey",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -417,16 +252,12 @@
       },
       "get": {
         "tags": ["Surveys"],
-        "summary": "Get all surveys",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
+        "summary": "List all surveys",
         "parameters": [
           {
             "name": "page",
             "in": "query",
+            "description": "Page number",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -436,6 +267,7 @@
           {
             "name": "limit",
             "in": "query",
+            "description": "Number of items per page",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -444,21 +276,12 @@
             }
           },
           {
-            "name": "sort",
+            "name": "user",
             "in": "query",
+            "description": "Filter surveys by creator's user ID",
             "schema": {
               "type": "string",
-              "enum": ["createdAt", "updatedAt", "expiryDate"],
-              "default": "createdAt"
-            }
-          },
-          {
-            "name": "order",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "enum": ["asc", "desc"],
-              "default": "desc"
+              "pattern": "^[0-9a-fA-F]{24}$"
             }
           }
         ],
@@ -468,9 +291,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Survey"
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["success"]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Survey"
+                      }
+                    }
                   }
                 }
               }
@@ -483,11 +315,6 @@
       "get": {
         "tags": ["Surveys"],
         "summary": "Search surveys",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "parameters": [
           {
             "name": "query",
@@ -496,16 +323,7 @@
             "schema": {
               "type": "string",
               "minLength": 2,
-              "maxLength": 100
-            }
-          },
-          {
-            "name": "type",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "enum": ["exact", "fuzzy", "semantic"],
-              "default": "fuzzy"
+              "maxLength": 200
             }
           }
         ],
@@ -515,41 +333,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Survey"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/surveys/search/natural": {
-      "get": {
-        "tags": ["Surveys"],
-        "summary": "Search surveys using natural language query",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "query",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Search results",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Survey"
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Survey"
+                      }
+                    }
                   }
                 }
               }
@@ -559,23 +350,18 @@
       }
     },
     "/api/surveys/{id}": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "pattern": "^[0-9a-fA-F]{24}$"
-          }
-        }
-      ],
       "get": {
         "tags": ["Surveys"],
         "summary": "Get survey by ID",
-        "security": [
+        "parameters": [
           {
-            "bearerAuth": []
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{24}$"
+            }
           }
         ],
         "responses": {
@@ -601,61 +387,26 @@
           }
         }
       },
-      "put": {
-        "tags": ["Surveys"],
-        "summary": "Update survey",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Survey"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Survey updated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Survey"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Survey not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
       "delete": {
         "tags": ["Surveys"],
         "summary": "Delete survey",
-        "security": [
+        "parameters": [
           {
-            "bearerAuth": []
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{24}$"
+            }
           }
         ],
         "responses": {
           "204": {
             "description": "Survey deleted successfully"
           },
-          "404": {
-            "description": "Survey not found",
+          "403": {
+            "description": "Not authorized to delete this survey",
             "content": {
               "application/json": {
                 "schema": {
@@ -671,7 +422,6 @@
       "post": {
         "tags": ["Surveys"],
         "summary": "Close a survey",
-        "security": [{"bearerAuth": []}],
         "parameters": [
           {
             "name": "id",
@@ -685,128 +435,10 @@
         ],
         "responses": {
           "200": {
-            "description": "Survey closed successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Survey"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/surveys/{id}/responses": {
-      "post": {
-        "tags": ["Responses"],
-        "summary": "Submit a response to a survey",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{24}$"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Response"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Response submitted successfully"
+            "description": "Survey closed successfully"
           },
-          "400": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Survey not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": ["Responses"],
-        "summary": "Get all responses for a survey",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{24}$"
-            }
-          },
-          {
-            "name": "page",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 1
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 10
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of responses",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SurveyResponse"
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Survey not found",
+          "403": {
+            "description": "Not authorized to close this survey",
             "content": {
               "application/json": {
                 "schema": {
@@ -819,10 +451,42 @@
       }
     },
     "/api/surveys/{id}/expiry": {
+      "get": {
+        "tags": ["Surveys"],
+        "summary": "Get survey expiry date",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Survey expiry date",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "expiryDate": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "put": {
         "tags": ["Surveys"],
         "summary": "Update survey expiry date",
-        "security": [{"bearerAuth": []}],
         "parameters": [
           {
             "name": "id",
@@ -853,11 +517,245 @@
         },
         "responses": {
           "200": {
-            "description": "Expiry date updated successfully",
+            "description": "Survey expiry date updated successfully"
+          },
+          "403": {
+            "description": "Not authorized to update this survey",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Survey"
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/surveys/{id}/validate-responses": {
+      "get": {
+        "tags": ["Surveys"],
+        "summary": "Validate all responses for a survey",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validation results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valid": {
+                      "type": "boolean"
+                    },
+                    "invalidResponses": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/surveys/{id}/summary": {
+      "post": {
+        "tags": ["Surveys"],
+        "summary": "Generate survey summary",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Summary generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "summary": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/surveys/{id}/summary/visibility": {
+      "put": {
+        "tags": ["Surveys"],
+        "summary": "Toggle survey summary visibility",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["isSummaryVisible"],
+                "properties": {
+                  "isSummaryVisible": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Summary visibility updated successfully"
+          }
+        }
+      }
+    },
+    "/api/surveys/{id}/responses": {
+      "post": {
+        "tags": ["Responses"],
+        "summary": "Submit a response to a survey",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["content"],
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "description": "The response content",
+                    "minLength": 10,
+                    "maxLength": 2000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Response submitted successfully"
+          },
+          "400": {
+            "description": "Invalid input or survey is closed/expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["Responses"],
+        "summary": "List all responses for a survey",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{24}$"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of items per page",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of responses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "responses": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Response"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "totalPages": {
+                      "type": "integer"
+                    }
+                  }
                 }
               }
             }
@@ -868,8 +766,7 @@
     "/api/surveys/{id}/responses/{responseId}": {
       "put": {
         "tags": ["Responses"],
-        "summary": "Update a specific response",
-        "security": [{"bearerAuth": []}],
+        "summary": "Update a survey response",
         "parameters": [
           {
             "name": "id",
@@ -904,8 +801,8 @@
           "200": {
             "description": "Response updated successfully"
           },
-          "404": {
-            "description": "Survey or response not found",
+          "403": {
+            "description": "Not authorized to update this response",
             "content": {
               "application/json": {
                 "schema": {
@@ -918,8 +815,7 @@
       },
       "delete": {
         "tags": ["Responses"],
-        "summary": "Delete a specific response",
-        "security": [{"bearerAuth": []}],
+        "summary": "Delete a survey response",
         "parameters": [
           {
             "name": "id",
@@ -944,8 +840,8 @@
           "204": {
             "description": "Response deleted successfully"
           },
-          "404": {
-            "description": "Survey or response not found",
+          "403": {
+            "description": "Not authorized to delete this response",
             "content": {
               "application/json": {
                 "schema": {
@@ -957,148 +853,13 @@
         }
       }
     },
-    "/api/surveys/{id}/validate-responses": {
-      "post": {
-        "tags": ["Surveys"],
-        "summary": "Validate all responses for a survey",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{24}$"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Responses validated successfully"
-          },
-          "404": {
-            "description": "Survey not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/surveys/{id}/summary": {
-      "post": {
-        "tags": ["Surveys"],
-        "summary": "Generate summary for survey responses",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{24}$"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Summary generated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Survey"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Survey not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/surveys/{id}/toggle-summary": {
-      "post": {
-        "tags": ["Surveys"],
-        "summary": "Toggle summary visibility",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{24}$"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Summary visibility toggled successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Survey"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Survey not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/surveys/{id}/responses/{responseId}/validate": {
-      "post": {
+    "/api/surveys/{id}/bad-responses": {
+      "delete": {
         "tags": ["Responses"],
-        "summary": "Validate a specific response",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
+        "summary": "Delete all responses marked as violations from a survey",
         "parameters": [
           {
             "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{24}$"
-            }
-          },
-          {
-            "name": "responseId",
             "in": "path",
             "required": true,
             "schema": {
@@ -1109,17 +870,128 @@
         ],
         "responses": {
           "200": {
-            "description": "Response validated successfully",
+            "description": "Bad responses deleted successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ValidationResult"
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["success"]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "deletedCount": {
+                          "type": "integer",
+                          "description": "Number of responses deleted"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - User is not the survey creator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
           },
           "404": {
-            "description": "Survey or response not found",
+            "description": "Survey not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/surveys/users/responses/{userId}": {
+      "get": {
+        "tags": ["Surveys"],
+        "summary": "Get all responses for a specific user",
+        "description": "Retrieves all survey responses submitted by the specified user. Only accessible by the user themselves.",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{24}$"
+            },
+            "description": "ID of the user whose responses to retrieve"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of user responses retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["success"]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "_id": {
+                            "type": "string"
+                          },
+                          "content": {
+                            "type": "string"
+                          },
+                          "survey": {
+                            "type": "object",
+                            "properties": {
+                              "title": {
+                                "type": "string"
+                              },
+                              "description": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - User can only view their own responses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -1132,4 +1004,4 @@
       }
     }
   }
-} 
+}

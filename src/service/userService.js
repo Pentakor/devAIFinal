@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import User from '../storage/models/User.js';
+import User from '../models/User.js';
 import { registerSchema, loginSchema } from '../validation/schemas.js';
 
 export const registerUser = async (userData) => {

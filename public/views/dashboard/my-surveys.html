@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Surveys</title>
+  <link rel="stylesheet" href="/assets/css/dashboard/dashboard.css" />
+  <style>
+    .survey-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      align-items: center;
+    }
+    
+    .edit-btn, .delete-btn, .view-responses-btn, .summarize-btn, .visibility-btn, .validate-responses-btn, .close-btn, .change-expiry-btn {
+      padding: 5px 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9em;
+      white-space: nowrap;
+      min-width: fit-content;
+    }
+    
+    .edit-btn {
+      background-color: #4CAF50;
+      color: white;
+    }
+    
+    .delete-btn {
+      background-color: #f44336;
+      color: white;
+    }
+
+    .view-responses-btn {
+      background-color: #2196F3;
+      color: white;
+    }
+
+    .summarize-btn, .visibility-btn {
+      background-color: #9c27b0;
+      color: white;
+    }
+
+    .visibility-btn.hide {
+      background-color: #f44336;
+    }
+    
+    .validate-responses-btn {
+      background-color: #00bcd4;
+      color: white;
+    }
+    
+    .validate-responses-btn:hover {
+      background-color: #0097a7;
+    }
+    
+    .back-btn {
+      margin-bottom: 20px;
+      padding: 8px 16px;
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .responses-section {
+      margin-top: 15px;
+      padding: 15px;
+      background-color: #f5f5f5;
+      border-radius: 4px;
+      display: none;
+    }
+
+    .response-card {
+      background-color: white;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .response-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      color: #666;
+      font-size: 0.9em;
+    }
+
+    .response-content {
+      margin-bottom: 10px;
+    }
+
+    .response-validation {
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 0.9em;
+      margin-top: 5px;
+    }
+
+    .validation-violation {
+      background-color: #ffebee;
+      color: #c62828;
+    }
+
+    .validation-approved {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .validation-pending {
+      background-color: #fff3e0;
+      color: #ef6c00;
+    }
+
+    .response-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    .delete-response-btn {
+      padding: 4px 8px;
+      background-color: #f44336;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8em;
+    }
+
+    .delete-response-btn:hover {
+      background-color: #d32f2f;
+    }
+
+    .no-responses {
+      text-align: center;
+      color: #666;
+      padding: 20px;
+    }
+
+    .summary-loading {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+    }
+
+    .summary-error {
+      color: #c62828;
+      padding: 10px;
+      background-color: #ffebee;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+
+    .survey-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .survey-status-container {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 5px;
+    }
+
+    .survey-expiry {
+      font-size: 0.9em;
+      color: #666;
+    }
+
+    .close-btn {
+      background-color: #ff9800;
+      color: white;
+    }
+
+    .close-btn.closed {
+      background-color: #795548;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+    }
+
+    .modal-content {
+      position: relative;
+      background-color: #fff;
+      margin: 5% auto;
+      padding: 20px;
+      width: 80%;
+      max-width: 800px;
+      max-height: 80vh;
+      overflow-y: auto;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .close-modal {
+      position: absolute;
+      right: 20px;
+      top: 10px;
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+      color: #666;
+    }
+
+    .close-modal:hover {
+      color: #000;
+    }
+
+    .modal-title {
+      margin-bottom: 20px;
+      padding-right: 30px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .delete-all-bad-btn {
+      padding: 8px 16px;
+      background-color: #f44336;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+
+    .delete-all-bad-btn:hover {
+      background-color: #d32f2f;
+    }
+
+    /* Date picker modal styles */
+    .date-picker-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+    }
+
+    .date-picker-content {
+      position: relative;
+      background-color: #fff;
+      margin: 15% auto;
+      padding: 20px;
+      width: 90%;
+      max-width: 500px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .date-picker-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .date-picker-close {
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+      color: #666;
+    }
+
+    .date-picker-close:hover {
+      color: #000;
+    }
+
+    .date-picker-form {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .date-picker-form input[type="datetime-local"] {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+
+    .date-picker-form button {
+      padding: 10px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .date-picker-form button:hover {
+      background-color: #45a049;
+    }
+
+    .change-expiry-btn {
+      background-color: #ff9800;
+      color: white;
+    }
+
+    .change-expiry-btn:hover {
+      background-color: #f57c00;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>My Surveys</h2>
+    
+    <button class="back-btn" onclick="window.location.href='dashboard.html'">← Back to Dashboard</button>
+
+    <div class="surveys-section">
+      <div class="survey-grid" id="mySurveyList">
+        <!-- User's surveys will be populated here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for responses -->
+  <div id="responsesModal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal" onclick="closeModal()">&times;</span>
+      <h3 class="modal-title">Survey Responses</h3>
+      <div class="modal-actions">
+        <button onclick="deleteAllBadResponses()" class="delete-all-bad-btn">
+          Delete All Bad Responses
+        </button>
+      </div>
+      <div id="modalResponsesContent"></div>
+    </div>
+  </div>
+
+  <!-- Date picker modal -->
+  <div id="datePickerModal" class="date-picker-modal">
+    <div class="date-picker-content">
+      <div class="date-picker-header">
+        <h3>Change Expiry Date</h3>
+        <span class="date-picker-close" onclick="closeDatePickerModal()">&times;</span>
+      </div>
+      <form class="date-picker-form" id="datePickerForm">
+        <input type="datetime-local" id="newExpiryDate" required>
+        <button type="submit">Update Expiry Date</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let currentSurveyId = null;
+    let currentDatePickerSurveyId = null;
+
+    async function fetchMySurveys() {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          window.location.href = 'login.html';
+          return;
+        }
+
+        // Get user ID from token payload
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const userId = payload.id;
+
+        const res = await fetch(`http://localhost:3000/api/surveys?user=${userId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (!res.ok) {
+          throw new Error('Failed to fetch surveys');
+        }
+
+        const data = await res.json();
+        const surveyGrid = document.getElementById('mySurveyList');
+        
+        // Clear existing surveys before populating
+        surveyGrid.innerHTML = '';
+        
+        if (!data.data || data.data.length === 0) {
+          surveyGrid.innerHTML = '<p class="no-surveys">You haven\'t created any surveys yet.</p>';
+          return;
+        }
+
+        data.data.forEach(survey => {
+          const isExpired = new Date(survey.expiryDate) < new Date();
+          const surveyCard = document.createElement('div');
+          surveyCard.className = 'survey-card';
+          surveyCard.innerHTML = `
+            <div class="survey-header">
+              <h4>${survey.area}</h4>
+              <div class="survey-status-container">
+                <span class="survey-expiry">Expires: ${new Date(survey.expiryDate).toLocaleDateString()}</span>
+                <span class="survey-status ${survey.isClosed ? 'closed' : (isExpired ? 'expired' : 'active')}">
+                  ${survey.isClosed ? 'Closed' : (isExpired ? 'Expired' : 'Active')}
+                </span>
+              </div>
+            </div>
+            <div class="survey-content">
+              <p class="survey-question">${survey.question}</p>
+              <div class="survey-details">
+                <div class="detail-section">
+                  <h5>Permitted Domains:</h5>
+                  <p>${survey.guidelines.permittedDomains}</p>
+                </div>
+                <div class="detail-section">
+                  <h5>Response Instructions:</h5>
+                  <p>${survey.guidelines.permittedResponses}</p>
+                </div>
+                <div class="detail-section">
+                  <h5>Summary Instructions:</h5>
+                  <p>${survey.guidelines.summaryInstructions}</p>
+                </div>
+                ${survey.summary && survey.summary.isVisible ? `
+                <div class="detail-section summary-section">
+                  <h5>Summary:</h5>
+                  ${survey.summary.content.summary ? `
+                    <div class="summary-content">
+                      ${survey.summary.content.summary.themes ? `
+                        <div class="summary-themes">
+                          <h6>Themes:</h6>
+                          <ul>
+                            ${survey.summary.content.summary.themes.map(theme => `<li>${theme}</li>`).join('')}
+                          </ul>
+                        </div>
+                      ` : ''}
+                      ${survey.summary.content.summary.keyInsights ? `
+                        <div class="summary-insights">
+                          <h6>Key Insights:</h6>
+                          <ul>
+                            ${survey.summary.content.summary.keyInsights.map(insight => `<li>${insight}</li>`).join('')}
+                          </ul>
+                        </div>
+                      ` : ''}
+                      ${survey.summary.content.summary.recommendations ? `
+                        <div class="summary-recommendations">
+                          <h6>Recommendations:</h6>
+                          <ul>
+                            ${survey.summary.content.summary.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                          </ul>
+                        </div>
+                      ` : ''}
+                      ${survey.summary.content.summary.concerns ? `
+                        <div class="summary-concerns">
+                          <h6>Concerns:</h6>
+                          <ul>
+                            ${survey.summary.content.summary.concerns.map(concern => `<li>${concern}</li>`).join('')}
+                          </ul>
+                        </div>
+                      ` : ''}
+                    </div>
+                  ` : ''}
+                </div>
+                ` : ''}
+              </div>
+            </div>
+            <div class="survey-footer">
+              <div class="survey-actions">
+                <button onclick="toggleResponses('${survey._id}')" class="view-responses-btn">
+                  View Responses
+                </button>
+                <button onclick="generateSummary('${survey._id}')" class="summarize-btn">
+                  Summarize
+                </button>
+                <button onclick="toggleSummaryVisibility('${survey._id}', ${survey.summary?.isVisible || false})" 
+                        class="visibility-btn ${survey.summary?.isVisible ? 'hide' : ''}" 
+                        id="visibility-btn-${survey._id}">
+                  ${survey.summary?.isVisible ? 'Hide Summary' : 'Show Summary'}
+                </button>
+                <button onclick="validateResponses('${survey._id}')" class="validate-responses-btn">
+                  Validate Responses
+                </button>
+                <button onclick="openDatePicker('${survey._id}')" class="change-expiry-btn">
+                  Change Expiry Date
+                </button>
+                ${!survey.isClosed ? `
+                <button onclick="closeSurvey('${survey._id}')" 
+                        class="close-btn" 
+                        id="close-btn-${survey._id}">
+                  Close Survey
+                </button>
+                ` : ''}
+                <button onclick="deleteSurvey('${survey._id}')" class="delete-btn">
+                  Delete
+                </button>
+              </div>
+              <div id="responses-${survey._id}" class="responses-section">
+                <!-- Responses will be loaded here -->
+              </div>
+            </div>
+          `;
+          surveyGrid.appendChild(surveyCard);
+        });
+      } catch (error) {
+        console.error('Error fetching surveys:', error);
+        alert('Failed to load surveys. Please try again later.');
+      }
+    }
+
+    async function toggleResponses(surveyId) {
+      const modal = document.getElementById('responsesModal');
+      const modalContent = document.getElementById('modalResponsesContent');
+      currentSurveyId = surveyId;
+
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`http://localhost:3000/api/surveys/${surveyId}/responses`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to fetch responses');
+        }
+
+        const data = await res.json();
+        
+        if (!data.data || data.data.length === 0) {
+          modalContent.innerHTML = '<p class="no-responses">No responses yet.</p>';
+        } else {
+          modalContent.innerHTML = data.data.map(response => `
+            <div class="response-card">
+              <div class="response-header">
+                <span>By: ${response.user.username}</span>
+                <span>Submitted: ${new Date(response.metadata.submissionTime).toLocaleString()}</span>
+              </div>
+              <div class="response-content">
+                ${response.content}
+              </div>
+              <div class="response-validation ${response.validation === 'violation' ? 'validation-violation' : 
+                response.validation === 'approved' ? 'validation-approved' : 'validation-pending'}">
+                ${response.validation === 'violation' ? 
+                  `Violation: ${response.violationExplanation}` : 
+                  response.validation === 'approved' ? 
+                  'Valid Response' : 
+                  'Pending Review'}
+              </div>
+              <div class="response-actions">
+                <button onclick="deleteResponse('${surveyId}', '${response._id}')" class="delete-response-btn">
+                  Delete Response
+                </button>
+              </div>
+            </div>
+          `).join('');
+        }
+
+        modal.style.display = 'block';
+      } catch (error) {
+        console.error('Error fetching responses:', error);
+        alert('Failed to load responses. Please try again later.');
+      }
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('responsesModal');
+      modal.style.display = 'none';
+    }
+
+    // Close modal when clicking outside of it
+    window.onclick = function(event) {
+      const modal = document.getElementById('responsesModal');
+      if (event.target === modal) {
+        modal.style.display = 'none';
+      }
+    }
+
+    async function deleteSurvey(surveyId) {
+      if (!confirm('Are you sure you want to delete this survey?')) {
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`http://localhost:3000/api/surveys/${surveyId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to delete survey');
+        }
+
+        // Refresh the survey list
+        fetchMySurveys();
+      } catch (error) {
+        console.error('Error deleting survey:', error);
+        alert('Failed to delete survey. Please try again later.');
+      }
+    }
+
+    async function generateSummary(surveyId) {
+      const responsesSection = document.getElementById(`responses-${surveyId}`);
+      const summarySection = document.createElement('div');
+      summarySection.className = 'summary-loading';
+      summarySection.innerHTML = 'Generating summary...';
+      responsesSection.appendChild(summarySection);
+
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`http://localhost:3000/api/surveys/${surveyId}/summary`, {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to generate summary');
+        }
+
+        const data = await res.json();
+        
+        // Remove loading message
+        summarySection.remove();
+
+        // Add summary to the responses section
+        const summaryContent = document.createElement('div');
+        summaryContent.className = 'detail-section summary-section';
+        summaryContent.innerHTML = `
+          <h5>Summary:</h5>
+          ${data.data.summary.content.summary ? `
+            <div class="summary-content">
+              ${data.data.summary.content.summary.themes ? `
+                <div class="summary-themes">
+                  <h6>Themes:</h6>
+                  <ul>
+                    ${data.data.summary.content.summary.themes.map(theme => `<li>${theme}</li>`).join('')}
+                  </ul>
+                </div>
+              ` : ''}
+              ${data.data.summary.content.summary.keyInsights ? `
+                <div class="summary-insights">
+                  <h6>Key Insights:</h6>
+                  <ul>
+                    ${data.data.summary.content.summary.keyInsights.map(insight => `<li>${insight}</li>`).join('')}
+                  </ul>
+                </div>
+              ` : ''}
+              ${data.data.summary.content.summary.recommendations ? `
+                <div class="summary-recommendations">
+                  <h6>Recommendations:</h6>
+                  <ul>
+                    ${data.data.summary.content.summary.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                  </ul>
+                </div>
+              ` : ''}
+              ${data.data.summary.content.summary.concerns ? `
+                <div class="summary-concerns">
+                  <h6>Concerns:</h6>
+                  <ul>
+                    ${data.data.summary.content.summary.concerns.map(concern => `<li>${concern}</li>`).join('')}
+                  </ul>
+                </div>
+              ` : ''}
+            </div>
+          ` : ''}
+          <div class="summary-meta">
+            <small>Last updated: ${new Date(data.data.summary.lastUpdated).toLocaleString()}</small>
+          </div>
+        `;
+        responsesSection.appendChild(summaryContent);
+
+      } catch (error) {
+        console.error('Error generating summary:', error);
+        summarySection.className = 'summary-error';
+        summarySection.innerHTML = 'Failed to generate summary. Please try again later.';
+      }
+    }
+
+    async function toggleSummaryVisibility(surveyId, currentVisibility) {
+      try {
+        const token = localStorage.getItem('token');
+        const newVisibility = !currentVisibility;
+        
+        const res = await fetch(`http://localhost:3000/api/surveys/${surveyId}/summary/visibility`, {
+          method: 'PUT',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            isSummaryVisible: newVisibility
+          })
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to update summary visibility');
+        }
+
+        // Update button text and class
+        const button = document.getElementById(`visibility-btn-${surveyId}`);
+        button.textContent = newVisibility ? 'Hide Summary' : 'Show Summary';
+        button.className = `visibility-btn ${newVisibility ? 'hide' : ''}`;
+
+        // Refresh the survey list to show/hide summary
+        fetchMySurveys();
+
+      } catch (error) {
+        console.error('Error updating summary visibility:', error);
+        alert('Failed to update summary visibility. Please try again later.');
+      }
+    }
+
+    async function closeSurvey(surveyId) {
+      if (!confirm('Are you sure you want to close this survey? This action cannot be undone.')) {
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        
+        const res = await fetch(`http://localhost:3000/api/surveys/${surveyId}/close`, {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to close survey');
+        }
+
+        // Refresh the survey list to show updated status
+        fetchMySurveys();
+
+      } catch (error) {
+        console.error('Error closing survey:', error);
+        alert('Failed to close survey. Please try again later.');
+      }
+    }
+
+    async function validateResponses(surveyId) {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`http://localhost:3000/api/surveys/${surveyId}/validate-responses`, {
+          method: 'GET',
+          headers: { 
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to validate responses');
+        }
+
+        // Refresh the survey list to show updated validation status
+        fetchMySurveys();
+        alert('Responses validation completed successfully');
+
+      } catch (error) {
+        console.error('Error validating responses:', error);
+        alert('Failed to validate responses. Please try again later.');
+      }
+    }
+
+    async function deleteResponse(surveyId, responseId) {
+      if (!confirm('Are you sure you want to delete this response?')) {
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`http://localhost:3000/api/surveys/${surveyId}/responses/${responseId}`, {
+          method: 'DELETE',
+          headers: { 
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to delete response');
+        }
+
+        // Refresh the responses in the modal
+        toggleResponses(surveyId);
+      } catch (error) {
+        console.error('Error deleting response:', error);
+        alert('Failed to delete response. Please try again later.');
+      }
+    }
+
+    async function deleteAllBadResponses() {
+      if (!currentSurveyId) return;
+      
+      if (!confirm('Are you sure you want to delete all bad responses? This action cannot be undone.')) {
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`http://localhost:3000/api/surveys/${currentSurveyId}/bad-responses`, {
+          method: 'DELETE',
+          headers: { 
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to delete bad responses');
+        }
+
+        // Refresh the responses in the modal
+        toggleResponses(currentSurveyId);
+        alert('All bad responses have been deleted successfully');
+      } catch (error) {
+        console.error('Error deleting bad responses:', error);
+        alert('Failed to delete bad responses. Please try again later.');
+      }
+    }
+
+    function openDatePicker(surveyId) {
+      currentDatePickerSurveyId = surveyId;
+      const modal = document.getElementById('datePickerModal');
+      const dateInput = document.getElementById('newExpiryDate');
+      
+      // Set minimum date to current date
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      dateInput.min = now.toISOString().slice(0, 16);
+      
+      modal.style.display = 'block';
+    }
+
+    function closeDatePickerModal() {
+      const modal = document.getElementById('datePickerModal');
+      modal.style.display = 'none';
+      currentDatePickerSurveyId = null;
+    }
+
+    // Close date picker modal when clicking outside
+    window.onclick = function(event) {
+      const modal = document.getElementById('datePickerModal');
+      if (event.target === modal) {
+        closeDatePickerModal();
+      }
+    }
+
+    document.getElementById('datePickerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      if (!currentDatePickerSurveyId) return;
+
+      try {
+        const token = localStorage.getItem('token');
+        const newDate = document.getElementById('newExpiryDate').value;
+        
+        const res = await fetch(`http://localhost:3000/api/surveys/${currentDatePickerSurveyId}/expiry`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            expiryDate: new Date(newDate).toISOString()
+          })
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to update expiry date');
+        }
+
+        closeDatePickerModal();
+        fetchMySurveys(); // Refresh the survey list
+        alert('Expiry date updated successfully');
+      } catch (error) {
+        console.error('Error updating expiry date:', error);
+        alert('Failed to update expiry date. Please try again later.');
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', fetchMySurveys);
+  </script>
+</body>
+</html> 

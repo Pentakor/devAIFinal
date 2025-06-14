@@ -1,9 +1,28 @@
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Load test environment variables
-dotenv.config({ path: '.env.test' });
+const envPath = join(__dirname, '..', '.env.test');
+const envConfig = readFileSync(envPath, 'utf-8')
+  .split('\n')
+  .reduce((acc, line) => {
+    const [key, value] = line.split('=');
+    if (key && value) {
+      acc[key.trim()] = value.trim();
+    }
+    return acc;
+  }, {});
+
+// Set environment variables
+Object.entries(envConfig).forEach(([key, value]) => {
+  process.env[key] = value;
+});
 
 let mongod;
 
@@ -18,7 +37,9 @@ export const connectDB = async () => {
 export const closeDB = async () => {
   await mongoose.connection.dropDatabase();
   await mongoose.connection.close();
-  await mongod.stop();
+  if (mongod) {
+    await mongod.stop();
+  }
 };
 
 // Clear all data in the database

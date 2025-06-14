@@ -1,4 +1,7 @@
 import Joi from 'joi';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
+import Response from '../models/Response.js';
+import Survey from '../models/Survey.js';
 
 // Common schemas
 export const idSchema = Joi.string()
@@ -23,7 +26,12 @@ export const paginationSchema = Joi.object({
         .default('createdAt'),
     order: Joi.string()
         .valid('asc', 'desc')
-        .default('desc')
+        .default('desc'),
+    user: Joi.string()
+        .pattern(/^[0-9a-fA-F]{24}$/)
+        .messages({
+            'string.pattern.base': 'Invalid user ID format'
+        })
 });
 
 // Auth schemas
@@ -70,31 +78,15 @@ export const surveySchema = Joi.object({
     area: Joi.string()
         .min(3)
         .max(100)
-        .required()
-        .pattern(/^[a-zA-Z0-9\s-_]+$/)
-        .messages({
-            'string.pattern.base': 'Area can only contain letters, numbers, spaces, hyphens, and underscores'
-        }),
+        .required(),
     question: Joi.string()
         .min(10)
         .max(1000)
-        .required()
-        .custom((value, helpers) => {
-            if (!value.endsWith('?')) {
-                return helpers.error('string.custom', { message: 'Question must end with a question mark' });
-            }
-            return value;
-        }),
+        .required(),
     guidelines: Joi.object({
-        permittedDomains: Joi.array()
-            .items(
-                Joi.string()
-                    .pattern(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)
-                    .messages({
-                        'string.pattern.base': 'Invalid domain format'
-                    })
-            )
-            .min(1)
+        permittedDomains: Joi.string()
+            .min(2)
+            .max(500)
             .required(),
         permittedResponses: Joi.string()
             .min(10)
@@ -118,12 +110,21 @@ export const updateExpirySchema = Joi.object({
         .required()
 });
 
+export const summaryVisibilitySchema = Joi.object({
+    isSummaryVisible: Joi.boolean()
+        .required()
+});
+
 export const responseSchema = Joi.object({
     content: Joi.string()
         .min(10)
         .max(2000)
         .required()
-        .trim()
+        .trim(),
+    metadata: Joi.object({
+        ipAddress: Joi.string().trim(),
+        userAgent: Joi.string().trim()
+    }).optional()
 });
 
 export const searchSchema = Joi.object({
@@ -140,6 +141,10 @@ export const searchSchema = Joi.object({
 // Parameter schemas
 export const idParamSchema = Joi.object({
     id: idSchema
+});
+
+export const userIdParamSchema = Joi.object({
+    userId: idSchema
 });
 
 export const responseIdParamSchema = Joi.object({
@@ -193,4 +198,86 @@ export const databaseQuerySchema = Joi.object({
         .integer()
         .min(0)
         .default(0)
-}); 
+});
+
+// Survey response validation schema
+export const surveyResponsesSchema = Joi.object({
+    surveyResponses: Joi.array()
+        .items(
+            Joi.object({
+                surveyId: Joi.string()
+                    .required()
+                    .pattern(/^[0-9a-fA-F]{24}$/)
+                    .messages({
+                        'string.pattern.base': 'Invalid survey ID format'
+                    }),
+                responseId: Joi.string()
+                    .required()
+                    .pattern(/^[0-9a-fA-F]{24}$/)
+                    .messages({
+                        'string.pattern.base': 'Invalid response ID format'
+                    }),
+                content: Joi.string()
+                    .required()
+                    .min(10)
+                    .max(2000)
+                    .trim()
+            })
+        )
+        .min(1)
+        .required()
+        .messages({
+            'array.min': 'At least one survey response is required'
+        })
+});
+
+
+export const addResponse = async (surveyId, responseData, userId) => {
+    const { error } = responseSchema.validate(responseData);
+    if (error) {
+        throw new ValidationError(error.details[0].message);
+    }
+
+    const survey = await Survey.findById(surveyId);
+    if (!survey) {
+        throw new NotFoundError('Survey not found');
+    }
+
+    if (survey.isClosed) {
+        throw new ValidationError('Survey is closed');
+    }
+
+    if (survey.isExpired()) {
+        throw new ValidationError('Survey has expired');
+    }
+
+    // Use findOneAndUpdate with upsert for atomic operation
+    const response = await Response.findOneAndUpdate(
+        { survey: surveyId, user: userId },
+        {
+            content: responseData.content,
+            metadata: {
+                ipAddress: responseData.metadata?.ipAddress,
+                userAgent: responseData.metadata?.userAgent,
+                submissionTime: new Date()
+            },
+            updatedAt: new Date()
+        },
+        {
+            new: true,
+            upsert: true,
+            runValidators: true
+        }
+    );
+
+    // Get the updated survey with responses
+    const updatedSurvey = await Survey.findById(surveyId)
+        .populate('creator', 'username');
+
+    const responses = await Response.find({ survey: surveyId })
+        .populate('user', 'username');
+
+    const result = updatedSurvey.toObject();
+    result.responses = responses;
+    return result;
+}; 
