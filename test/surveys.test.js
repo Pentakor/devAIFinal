@@ -302,26 +302,26 @@ describe('Survey Management API', () => {
 
     describe('GET /api/surveys/search - Search Surveys', () => {
         beforeEach(async () => {
-            // Create surveys with different titles for search testing
+            // Create surveys with different areas for search testing
             await Survey.create({
                 ...generateTestSurvey(testUser._id),
-                title: 'Customer Feedback Survey'
+                area: 'Customer Feedback Area'
             });
             await Survey.create({
                 ...generateTestSurvey(testUser._id),
-                title: 'Employee Satisfaction Survey'
+                area: 'Employee Satisfaction Area'
             });
         });
 
         describe('Happy Path', () => {
-            it('should search surveys by title', async () => {
+            it('should search surveys by area', async () => {
                 const res = await request(app)
                     .get('/api/surveys/search?query=Customer')
                     .set('Authorization', `Bearer ${authToken}`);
 
                 expect(res.status).toBe(200);
                 expect(res.body.status).toBe('success');
-                expect(Array.isArray(res.body.data)).toBeTruthy();
+                expect(Array.isArray(res.body.data.results)).toBeTruthy();
             });
         });
 
@@ -459,6 +459,7 @@ describe('Survey Management API', () => {
                 await Response.create({
                     survey: testSurvey._id,
                     user: testUser._id,
+                    content: 'This is a detailed response to the survey questions that meets the minimum length requirement.',
                     answers: [
                         { questionId: 0, answer: 'Blue' },
                         { questionId: 1, answer: 'Because it reminds me of the ocean' }
@@ -469,12 +470,18 @@ describe('Survey Management API', () => {
                     .post(`/api/surveys/${testSurvey._id}/summary`)
                     .set('Authorization', `Bearer ${authToken}`);
 
+                console.log('Response body:', JSON.stringify(res.body, null, 2));
+
                 expect(res.status).toBe(200);
                 expect(res.body.status).toBe('success');
                 expect(res.body.data).toHaveProperty('summary');
-                expect(res.body.data.summary).toBe("This is a mock summary of the survey responses.");
-                expect(res.body.data.insights).toEqual(["Mock insight 1", "Mock insight 2"]);
-                expect(res.body.data.sentiment).toBe("positive");
+                expect(res.body.data.summary.summary.content).toEqual({
+                    summary: "This is a mock summary of the survey responses.",
+                    insights: ["Mock insight 1", "Mock insight 2"],
+                    sentiment: "positive"
+                });
+                expect(res.body.data.summary.summary.isVisible).toBe(false);
+                expect(res.body.data.summary.summary.lastUpdated).toBeDefined();
             });
 
             it('should return 400 for survey with no responses', async () => {
@@ -490,13 +497,21 @@ describe('Survey Management API', () => {
 
         describe('PUT /api/surveys/:id/summary/visibility - Toggle Summary Visibility', () => {
             it('should toggle summary visibility', async () => {
+                // First ensure survey has summary content
+                await Survey.findByIdAndUpdate(testSurvey._id, {
+                    'summary.content': 'This is a detailed summary of the survey responses that meets the minimum length requirement.',
+                    'summary.isVisible': false
+                });
+
                 const res = await request(app)
                     .put(`/api/surveys/${testSurvey._id}/summary/visibility`)
-                    .set('Authorization', `Bearer ${authToken}`);
+                    .set('Authorization', `Bearer ${authToken}`)
+                    .send({ isSummaryVisible: true });
 
                 expect(res.status).toBe(200);
                 expect(res.body.status).toBe('success');
-                expect(res.body.data).toHaveProperty('isSummaryVisible');
+                expect(res.body.data).toHaveProperty('summary');
+                expect(res.body.data.summary.isVisible).toBe(true);
             });
         });
     });

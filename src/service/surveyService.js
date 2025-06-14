@@ -222,6 +222,7 @@ export const searchSurveys = async (query) => {
     
     // Get full survey details for matching surveys
     const matchingSurveyIds = searchResults.matches.map(match => match.surveyid);
+    console.log('DEBUG: matchingSurveyIds', matchingSurveyIds);
     const matchingSurveys = await Survey.find({
         _id: { $in: matchingSurveyIds }
     }).populate('creator', 'username').lean();

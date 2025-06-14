@@ -24,7 +24,15 @@ const mockLLMService = {
         `What aspects of ${topic} do you find most valuable?`,
         `How could ${topic} be improved?`,
         `What challenges have you faced with ${topic}?`
-    ])
+    ]),
+
+    searchSurveysByQuery: (query, surveyData) => Promise.resolve({
+        matches: surveyData.map(survey => ({
+            surveyid: survey.id.toString(),
+            relevanceScore: 0.8,
+            matchReason: `Mock match for query: ${query}`
+        }))
+    })
 };
 
 // Named exports for individual functions
@@ -32,6 +40,7 @@ export const generateSummary = mockLLMService.generateSummary;
 export const validateResponses = mockLLMService.validateResponses;
 export const analyzeSentiment = mockLLMService.analyzeSentiment;
 export const generateSurveyQuestions = mockLLMService.generateSurveyQuestions;
+export const searchSurveysByQuery = mockLLMService.searchSurveysByQuery;
 
 // Default export for the whole service
 export default mockLLMService;
